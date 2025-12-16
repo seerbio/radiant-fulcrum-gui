@@ -31,7 +31,7 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
-        div { class: "min-h-screen bg-gray-900 py-8",
+        div { class: "h-screen max-h-screen bg-gray-900 overflow-hidden",
             CliForm {}
         }
     }

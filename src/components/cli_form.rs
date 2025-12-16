@@ -277,7 +277,7 @@ pub fn CliForm() -> Element {
         // File browser modal (web/server only)
         {file_browser_element}
 
-        div { class: "flex gap-6 p-6 h-full min-h-screen",
+        div { class: "flex gap-6 p-6 h-full overflow-hidden",
             // Left column - Parameters (1/3 width)
             form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
                 onsubmit: on_submit,
@@ -375,9 +375,9 @@ pub fn CliForm() -> Element {
             }
 
             // Right column - Log/Console Output (2/3 width)
-            div { class: "w-2/3 flex flex-col",
+            div { class: "w-2/3 flex flex-col min-h-0",
                 h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
-                div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto",
+                div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0",
                     "{output}"
                 }
             }
