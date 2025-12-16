@@ -26,6 +26,7 @@ fn main() {
         let cfg = Config::new()
             .with_window(
                 WindowBuilder::new()
+                    .with_title("Pythia")
                     .with_always_on_top(false)
             );
         builder = builder.with_cfg(cfg);

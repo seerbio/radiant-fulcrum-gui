@@ -23,7 +23,7 @@ The `dx serve` command will run the app and provides auto-refresh functionality 
 #### Desktop
 
 ```bash
-dx serve --platform desktop
+dx serve
 ```
 
 #### Web
