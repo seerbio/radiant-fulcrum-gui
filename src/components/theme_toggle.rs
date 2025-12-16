@@ -3,13 +3,34 @@ use dioxus::prelude::*;
 #[component]
 pub fn ThemeToggle() -> Element {
     let mut is_dark = use_signal(|| true);
+    let mut initialized = use_signal(|| false);
+
+    use_effect(move || {
+        if !initialized() {
+            spawn(async move {
+                // Use dark_light crate to detect system theme
+                match dark_light::detect() {
+                    Ok(dark_light::Mode::Dark) => {
+                        is_dark.set(true);
+                    }
+                    Ok(dark_light::Mode::Light) => {
+                        is_dark.set(false);
+                    }
+                    _ => { }
+                }
+                initialized.set(true);
+            });
+        }
+    });
 
     let toggle_theme = move |_| {
         is_dark.set(!is_dark());
     };
 
-    // Use effect to toggle the 'dark' class on the html element
     use_effect(move || {
+        if !initialized() {
+            return;
+        }
         let dark = is_dark();
         #[cfg(target_arch = "wasm32")]
         {
@@ -48,7 +69,7 @@ pub fn ThemeToggle() -> Element {
             if is_dark() {
                 // Sun icon (show when in dark mode to switch to light)
                 svg {
-                    class: "w-6 h-6 text-yellow-400",
+                    class: "w-6 h-6 text-white",
                     fill: "none",
                     stroke: "currentColor",
                     stroke_width: "2",

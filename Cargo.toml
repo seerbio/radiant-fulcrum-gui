@@ -8,12 +8,14 @@ edition = "2021"
 dioxus = { version = "0.7.1", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1.0", features = ["v4"] }
+dark-light = "2.0.0"
 
 # For WASM builds, we need js feature for uuid's getrandom dependency
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 uuid = { version = "1.0", features = ["v4", "js"] }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 gloo-timers = { version = "0.3", features = ["futures"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "DomTokenList", "MediaQueryList"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
