@@ -2,7 +2,7 @@
 // need dioxus
 use dioxus::prelude::*;
 
-use components::Hero;
+use components::CliForm;
 
 /// Define a components module that contains all shared components for our app.
 mod components;
@@ -34,7 +34,7 @@ fn App() -> Element {
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
-        Hero {}
+        CliForm {}
 
     }
 }

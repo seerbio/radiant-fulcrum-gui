@@ -4,3 +4,5 @@
 
 mod hero;
 pub use hero::Hero;
+mod cli_form;
+pub use cli_form::CliForm;
