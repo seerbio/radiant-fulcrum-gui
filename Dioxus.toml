@@ -2,21 +2,19 @@
 name = "pythia-scry-gui"
 
 [web.app]
-
-# HTML title tag content
 title = "pythia-scry-gui"
 
-# include `assets` in web platform
 [web.resource]
-
-# Additional CSS style files
 style = []
-
-# Additional JavaScript files
 script = []
 
 [web.resource.dev]
-
-# Javascript code file
-# serve: [dev-server] only
 script = []
+
+# Fullstack configuration
+[web.watcher]
+reload_html = true
+watch_path = ["src", "assets"]
+
+[bundle]
+identifier = "bio.seer.pythia-scry-gui"
