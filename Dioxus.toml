@@ -18,3 +18,4 @@ watch_path = ["src", "assets"]
 
 [bundle]
 identifier = "bio.seer.pythia-scry-gui"
+publisher = "Seer Inc."
