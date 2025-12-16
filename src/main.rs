@@ -6,8 +6,12 @@ use components::CliForm;
 
 mod components;
 mod server_fns;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod runner;
+
+#[cfg(feature = "desktop")]
+use dioxus::desktop::{Config, WindowBuilder};
 
 // We can import assets in dioxus with the `asset!` macro. This macro takes a path to an asset relative to the crate root.
 // The macro returns an `Asset` type that will display as the path to the asset in the browser or a local path in desktop bundles.
@@ -15,7 +19,19 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
-    LaunchBuilder::new().launch(App);
+    let mut builder = LaunchBuilder::new();
+
+    #[cfg(feature = "desktop")]
+    {
+        let cfg = Config::new()
+            .with_window(
+                WindowBuilder::new()
+                    .with_always_on_top(false)
+            );
+        builder = builder.with_cfg(cfg);
+    }
+
+    builder.launch(App);
 }
 
 /// App is the main component of our app. Components are the building blocks of dioxus apps. Each component is a function
