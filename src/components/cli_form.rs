@@ -4,6 +4,18 @@ use crate::server_fns::{SearchMode, RunConfig, start_pythia_scry, get_job_status
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
 
+/// Platform-agnostic sleep function
+async fn sleep_ms(ms: u64) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        gloo_timers::future::TimeoutFuture::new(ms as u32).await;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum BrowserTarget {
     Library,
@@ -181,7 +193,7 @@ pub fn CliForm() -> Element {
                             break;
                         }
                     }
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    sleep_ms(500).await;
                 }
             });
         }

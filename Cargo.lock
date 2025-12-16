@@ -3835,6 +3835,7 @@ dependencies = [
  "dirs 5.0.1",
  "futures-lite",
  "getrandom 0.3.4",
+ "gloo-timers",
  "once_cell",
  "rfd",
  "serde",
