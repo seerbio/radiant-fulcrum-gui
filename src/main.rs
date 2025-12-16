@@ -2,7 +2,7 @@
 // need dioxus
 use dioxus::prelude::*;
 
-use components::CliForm;
+use components::{CliForm, ThemeToggle};
 
 mod components;
 mod server_fns;
@@ -48,7 +48,8 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
-        div { class: "h-screen max-h-screen bg-gray-900 overflow-hidden",
+        div { class: "h-screen max-h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden transition-colors duration-200",
+            ThemeToggle {}
             CliForm {}
         }
     }
