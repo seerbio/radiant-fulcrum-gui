@@ -142,6 +142,7 @@ where
     // Build command arguments with remapped paths
     let mut args = vec![
         "pythia_scry".to_string(),
+        "-v".to_string(),
         "--library".to_string(), library_container,
         "--fasta".to_string(), fasta_container,
         "--fdr-thresh".to_string(), config.fdr_thresh,
