@@ -1,5 +1,7 @@
 use std::process::{Command, Stdio};
 use std::io::{self, BufRead, BufReader};
+use std::sync::mpsc;
+use std::thread;
 
 const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
 
@@ -74,22 +76,45 @@ where
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
 
-    if let Some(stdout) = stdout {
-        let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                on_output(&line);
+    // Use a channel to collect output from both stdout and stderr concurrently
+    let (tx, rx) = mpsc::channel::<String>();
+
+    // Spawn thread for stdout
+    let tx_stdout = tx.clone();
+    let stdout_handle = stdout.map(|stdout| {
+        thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    let _ = tx_stdout.send(line);
+                }
             }
-        }
+        })
+    });
+
+    // Spawn thread for stderr
+    let stderr_handle = stderr.map(|stderr| {
+        thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    let _ = tx.send(format!("[stderr] {}", line));
+                }
+            }
+        })
+    });
+
+    // Receive and output lines as they come in from either stream
+    for line in rx {
+        on_output(&line);
     }
 
-    if let Some(stderr) = stderr {
-        let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                on_output(&format!("[stderr] {}", line));
-            }
-        }
+    // Wait for reader threads to finish
+    if let Some(handle) = stdout_handle {
+        let _ = handle.join();
+    }
+    if let Some(handle) = stderr_handle {
+        let _ = handle.join();
     }
 
     let status = child.wait()?;

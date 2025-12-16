@@ -117,7 +117,7 @@ pub fn CliForm() -> Element {
                     }
                     Err(mpsc::TryRecvError::Empty) => {
                         // Yield to allow UI updates, then continue polling
-                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                     }
                     Err(mpsc::TryRecvError::Disconnected) => break,
                 }

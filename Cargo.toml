@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 dioxus = { version = "0.7.1", features = [] }
 rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
+tokio = { version = "1", features = ["time"] }
 
 [features]
 default = ["desktop"]
