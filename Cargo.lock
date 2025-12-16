@@ -3484,6 +3484,7 @@ name = "pythia-scry-gui"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "rfd",
 ]
 
 [[package]]
