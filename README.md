@@ -10,7 +10,7 @@ project/
 │  ├─ main.rs # The entrypoint for the app.
 │  ├─ components/
 │  │  ├─ mod.rs # Defines the components module
-│  │  ├─ hero.rs # The Hero component for use in the home page
+│  │  ├─ cli_form.rs # The CLI form component
 ├─ Cargo.toml # The Cargo.toml file defines the dependencies and feature flags for your project
 ```
 
@@ -50,4 +50,3 @@ To run for a different platform, use the `--platform platform` flag. E.g.
 ```bash
 dx serve --platform desktop
 ```
-
