@@ -5,8 +5,11 @@ use dioxus::desktop::{Config, WindowBuilder};
 
 use components::CliForm;
 
-/// Define a components module that contains all shared components for our app.
 mod components;
+mod runner;
+
+/// Define a components module that contains all shared components for our app.
+// mod components;
 
 // We can import assets in dioxus with the `asset!` macro. This macro takes a path to an asset relative to the crate root.
 // The macro returns an `Asset` type that will display as the path to the asset in the browser or a local path in desktop bundles.

@@ -1,11 +1,6 @@
 use dioxus::prelude::*;
-use std::process::Command;
-
-#[derive(Clone, Copy, PartialEq)]
-enum SearchMode {
-    LibraryFree,
-    Mbr,
-}
+use std::sync::mpsc;
+use crate::runner::{SearchMode, RunConfig, run_pythia_scry};
 
 #[component]
 pub fn CliForm() -> Element {
@@ -16,7 +11,7 @@ pub fn CliForm() -> Element {
     let mut fdr_thresh = use_signal(|| "0.01".to_string());
     let mut threads = use_signal(|| "0".to_string());
     let mut results_dir = use_signal(String::new);
-    let mut mzml_files = use_signal(Vec::<String>::new);
+    let mzml_files = use_signal(Vec::<String>::new);
     let mut output = use_signal(String::new);
     let mut running = use_signal(|| false);
 
@@ -81,49 +76,50 @@ pub fn CliForm() -> Element {
     let on_submit = move |_| {
         if *running.read() { return; }
         running.set(true);
-        output.set("Running...".to_string());
-        let library = library.read().clone();
-        let fasta = fasta.read().clone();
-        let config = config.read().clone();
-        let search_mode = *search_mode.read();
-        let fdr_thresh = fdr_thresh.read().clone();
-        let threads = threads.read().clone();
-        let results_dir = results_dir.read().clone();
-        let mzml_files = mzml_files.read().clone();
+        output.set(String::new());
+
+        let run_config = RunConfig {
+            library: library.read().clone(),
+            fasta: fasta.read().clone(),
+            config: Some(config.read().clone()),
+            search_mode: *search_mode.read(),
+            fdr_thresh: fdr_thresh.read().clone(),
+            threads: threads.read().clone(),
+            results_dir: Some(results_dir.read().clone()),
+            mzml_files: mzml_files.read().clone(),
+        };
+
+        let (tx, rx) = mpsc::channel::<String>();
+
+        std::thread::spawn(move || {
+            let result = run_pythia_scry(run_config, |line| {
+                let _ = tx.send(line.to_string());
+            });
+            match result {
+                Ok(code) => { let _ = tx.send(format!("\n--- Process exited with code {} ---", code)); }
+                Err(e) => { let _ = tx.send(format!("\n--- Failed to run: {} ---", e)); }
+            }
+        });
+
         let output = output.clone();
         let running = running.clone();
         spawn(async move {
             let mut output = output;
             let mut running = running;
-            let mut args = vec![
-                "--library".to_string(), library,
-                "--fasta".to_string(), fasta,
-                "--fdr-thresh".to_string(), fdr_thresh,
-                "--threads".to_string(), threads,
-            ];
-            if !config.is_empty() { args.push("--config".to_string()); args.push(config); }
-            match search_mode {
-                SearchMode::Mbr => args.push("--mbr".to_string()),
-                SearchMode::LibraryFree => args.push("--no-mbr".to_string()),
-            }
-            if !results_dir.is_empty() { args.push("--results-dir".to_string()); args.push(results_dir); }
-            for file in mzml_files { args.push(file); }
-            let res = Command::new("docker")
-                .arg("run")
-                .arg("--rm")
-                .arg("-v")
-                .arg(format!("{}:/data", std::env::current_dir().unwrap().display()))
-                .arg("pythia-scry-cli")
-                .args(&args)
-                .output();
-            match res {
-                Ok(out) => {
-                    let mut s = String::new();
-                    if !out.stdout.is_empty() { s.push_str(&String::from_utf8_lossy(&out.stdout)); }
-                    if !out.stderr.is_empty() { s.push_str("\n---stderr---\n"); s.push_str(&String::from_utf8_lossy(&out.stderr)); }
-                    output.set(s);
+            loop {
+                match rx.try_recv() {
+                    Ok(line) => {
+                        let mut current = output.read().clone();
+                        if !current.is_empty() { current.push('\n'); }
+                        current.push_str(&line);
+                        output.set(current);
+                    }
+                    Err(mpsc::TryRecvError::Empty) => {
+                        // Yield to allow UI updates, then continue polling
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                    }
+                    Err(mpsc::TryRecvError::Disconnected) => break,
                 }
-                Err(e) => output.set(format!("Failed to run: {}", e)),
             }
             running.set(false);
         });
