@@ -1,6 +1,8 @@
 use std::process::{Command, Stdio};
 use std::io::{self, BufRead, BufReader};
 
+const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum SearchMode {
     LibraryFree,
@@ -16,6 +18,7 @@ pub struct RunConfig {
     pub threads: String,
     pub results_dir: Option<String>,
     pub mzml_files: Vec<String>,
+    pub img: Option<String>,
 }
 
 pub fn run_pythia_scry<F>(config: RunConfig, mut on_output: F) -> io::Result<i32>
@@ -23,6 +26,7 @@ where
     F: FnMut(&str),
 {
     let mut args = vec![
+        "pythia_scry".to_string(),
         "--library".to_string(), config.library,
         "--fasta".to_string(), config.fasta,
         "--fdr-thresh".to_string(), config.fdr_thresh,
@@ -52,12 +56,16 @@ where
         args.push(file);
     }
 
+    on_output(&format!("Running {args:?}"));
+
+    let img = config.img.unwrap_or(DEFAULT_IMG.to_string());
+
     let mut child = Command::new("docker")
         .arg("run")
         .arg("--rm")
         .arg("-v")
         .arg(format!("{}:/data", std::env::current_dir()?.display()))
-        .arg("pythia-scry-cli")
+        .arg(img)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

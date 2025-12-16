@@ -87,6 +87,7 @@ pub fn CliForm() -> Element {
             threads: threads.read().clone(),
             results_dir: Some(results_dir.read().clone()),
             mzml_files: mzml_files.read().clone(),
+            img: None,
         };
 
         let (tx, rx) = mpsc::channel::<String>();
