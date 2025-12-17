@@ -16,7 +16,6 @@ pub struct RunConfig {
     pub threads: String,
     pub results_dir: Option<String>,
     pub mzml_files: Vec<String>,
-    #[serde(skip)]
     pub img: Option<String>,
 }
 
