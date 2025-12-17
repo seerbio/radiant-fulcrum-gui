@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use crate::server_fns::{DirectoryListing, FileEntry, list_directory};
+use crate::components::cli_form::{LAST_DIRECTORY, update_last_dir};
 
 #[derive(Clone, PartialEq)]
 pub enum FileBrowserMode {
@@ -23,7 +24,8 @@ pub fn FileBrowser(
     use_effect(move || {
         spawn(async move {
             loading.set(true);
-            match list_directory(None).await {
+            let start_path = LAST_DIRECTORY.read().clone();
+            match list_directory(start_path).await {
                 Ok(dir) => {
                     listing.set(Some(dir));
                     error.set(None);
@@ -39,11 +41,12 @@ pub fn FileBrowser(
     let navigate_to = move |path: String| {
         spawn(async move {
             loading.set(true);
-            match list_directory(Some(path)).await {
+            match list_directory(Some(path.clone())).await {
                 Ok(dir) => {
                     listing.set(Some(dir));
                     error.set(None);
                     selected.set(Vec::new());
+                    update_last_dir(&path);
                 }
                 Err(e) => {
                     error.set(Some(format!("{}", e)));
@@ -75,10 +78,13 @@ pub fn FileBrowser(
     let confirm_selection = move |_| {
         let sel = selected.read();
         if !sel.is_empty() {
+            if let Some(ref dir) = *listing.read() {
+                update_last_dir(&dir.current_path);
+            }
             on_select_clone.call(sel.clone());
         } else if matches!(mode_for_confirm, FileBrowserMode::Directory) {
-            // For directory mode, if nothing selected, use current directory
             if let Some(ref dir) = *listing.read() {
+                update_last_dir(&dir.current_path);
                 on_select_clone.call(vec![dir.current_path.clone()]);
             }
         }
@@ -87,6 +93,7 @@ pub fn FileBrowser(
     let mode_for_current = mode.clone();
     let select_current_dir = move |_| {
         if let Some(ref dir) = *listing.read() {
+            update_last_dir(&dir.current_path);
             on_select.call(vec![dir.current_path.clone()]);
         }
     };

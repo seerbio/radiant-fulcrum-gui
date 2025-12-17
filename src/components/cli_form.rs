@@ -5,6 +5,8 @@ use crate::server_fns::{start_pythia_scry, get_job_status};
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
 
+pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
+
 async fn sleep_ms(ms: u64) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -13,6 +15,27 @@ async fn sleep_ms(ms: u64) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    }
+}
+
+pub fn update_last_dir(path: &str) {
+    *LAST_DIRECTORY.write() = Some(path.to_string());
+}
+
+#[cfg(feature = "desktop")]
+fn update_last_dir_from_file(path: &str) {
+    use std::path::Path;
+    if let Some(parent) = Path::new(path).parent() {
+        update_last_dir(&parent.display().to_string());
+    }
+}
+
+#[cfg(feature = "desktop")]
+fn apply_last_dir(dialog: rfd::AsyncFileDialog) -> rfd::AsyncFileDialog {
+    if let Some(ref dir) = *LAST_DIRECTORY.read() {
+        dialog.set_directory(dir)
+    } else {
+        dialog
     }
 }
 
@@ -45,11 +68,15 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let pick_library = move |_| {
         spawn(async move {
-            if let Some(path) = rfd::AsyncFileDialog::new()
-                .add_filter("Library", &["tsv", "parquet", "speclib"])
-                .pick_file().await
-            {
-                library.set(path.path().display().to_string());
+            let dialog = apply_last_dir(
+                rfd::AsyncFileDialog::new()
+                    .add_filter("Library", &["tsv", "parquet", "speclib"])
+            );
+
+            if let Some(path) = dialog.pick_file().await {
+                let path_str = path.path().display().to_string();
+                library.set(path_str.clone());
+                update_last_dir_from_file(&path_str);
             }
         });
     };
@@ -57,11 +84,15 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let pick_fasta = move |_| {
         spawn(async move {
-            if let Some(path) = rfd::AsyncFileDialog::new()
-                .add_filter("FASTA", &["fasta", "fas"])
-                .pick_file().await
-            {
-                fasta.set(path.path().display().to_string());
+            let dialog = apply_last_dir(
+                rfd::AsyncFileDialog::new()
+                    .add_filter("FASTA", &["fasta", "fas"])
+            );
+
+            if let Some(path) = dialog.pick_file().await {
+                let path_str = path.path().display().to_string();
+                fasta.set(path_str.clone());
+                update_last_dir_from_file(&path_str);
             }
         });
     };
@@ -69,11 +100,15 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let pick_config = move |_| {
         spawn(async move {
-            if let Some(path) = rfd::AsyncFileDialog::new()
-                .add_filter("Pythia Config", &["pythiaConfig"])
-                .pick_file().await
-            {
-                config.set(path.path().display().to_string());
+            let dialog = apply_last_dir(
+                rfd::AsyncFileDialog::new()
+                    .add_filter("Pythia Config", &["pythiaConfig"])
+            );
+
+            if let Some(path) = dialog.pick_file().await {
+                let path_str = path.path().display().to_string();
+                config.set(path_str.clone());
+                update_last_dir_from_file(&path_str);
             }
         });
     };
@@ -81,11 +116,17 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let pick_mzml = move |_| {
         spawn(async move {
-            let files = rfd::AsyncFileDialog::new()
-                .add_filter("mzML", &["mzML", "mzml"])
-                .pick_files().await;
+            let dialog = apply_last_dir(
+                rfd::AsyncFileDialog::new()
+                    .add_filter("mzML", &["mzML", "mzml"])
+            );
+
+            let files = dialog.pick_files().await;
             if let Some(files) = files {
                 let paths: Vec<String> = files.iter().map(|f| f.path().display().to_string()).collect();
+                if let Some(first) = paths.first() {
+                    update_last_dir_from_file(first);
+                }
                 mzml_files.set(paths);
             }
         });
@@ -94,8 +135,12 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let pick_results_dir = move |_| {
         spawn(async move {
-            if let Some(path) = rfd::AsyncFileDialog::new().pick_folder().await {
-                results_dir.set(path.path().display().to_string());
+            let dialog = apply_last_dir(rfd::AsyncFileDialog::new());
+
+            if let Some(path) = dialog.pick_folder().await {
+                let path_str = path.path().display().to_string();
+                results_dir.set(path_str.clone());
+                update_last_dir(&path_str);
             }
         });
     };
