@@ -44,211 +44,25 @@ pub struct JobStatus {
     pub exit_code: Option<i32>,
 }
 
-// ============================================================================
-// Fullstack (Server + Web) Implementation - uses #[server] macros
-// ============================================================================
-#[cfg(any(feature = "server", feature = "web"))]
-mod fullstack_impl {
-    use super::*;
-    use dioxus::prelude::*;
-
-    #[cfg(feature = "server")]
-    use std::collections::HashMap;
-    #[cfg(feature = "server")]
-    use std::sync::Arc;
-    #[cfg(feature = "server")]
-    use tokio::sync::Mutex;
-    #[cfg(feature = "server")]
-    use once_cell::sync::Lazy;
-
-    #[cfg(feature = "server")]
-    struct JobState {
-        output: Arc<Mutex<String>>,
-        exit_code: Arc<Mutex<Option<i32>>>,
-        running: Arc<Mutex<bool>>,
-    }
-
-    #[cfg(feature = "server")]
-    static JOBS: Lazy<Mutex<HashMap<String, JobState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-
-    /// List directory contents for the file browser
-    #[server(ListDirectory)]
-    pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, ServerFnError> {
-        use std::path::PathBuf;
-
-        let path = path.unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("/"))
-                .to_string_lossy()
-                .to_string()
-        });
-
-        let path_buf = PathBuf::from(&path);
-        let canonical = path_buf.canonicalize().map_err(|e| ServerFnError::new(e.to_string()))?;
-
-        let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
-
-        let mut entries = Vec::new();
-
-        let read_dir = std::fs::read_dir(&canonical).map_err(|e| ServerFnError::new(e.to_string()))?;
-
-        for entry in read_dir {
-            let entry = entry.map_err(|e| ServerFnError::new(e.to_string()))?;
-            let metadata = entry.metadata().map_err(|e| ServerFnError::new(e.to_string()))?;
-            let name = entry.file_name().to_string_lossy().to_string();
-
-            // Skip hidden files
-            if name.starts_with('.') {
-                continue;
-            }
-
-            entries.push(FileEntry {
-                name,
-                path: entry.path().to_string_lossy().to_string(),
-                is_dir: metadata.is_dir(),
-            });
-        }
-
-        // Sort: directories first, then files, alphabetically
-        entries.sort_by(|a, b| {
-            match (a.is_dir, b.is_dir) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-            }
-        });
-
-        Ok(DirectoryListing {
-            current_path: canonical.to_string_lossy().to_string(),
-            parent_path,
-            entries,
-        })
-    }
-
-    /// Start a pythia-scry job and return a job ID for tracking
-    #[server(StartPythiaScry)]
-    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, ServerFnError> {
-        use crate::runner::{RunConfig as RunnerConfig, SearchMode as RunnerSearchMode, run_pythia_scry};
-
-        let job_id = uuid::Uuid::new_v4().to_string();
-
-        // Convert from serde-compatible types to runner types
-        let runner_config = RunnerConfig {
-            library: config.library,
-            fasta: config.fasta,
-            config: config.config,
-            search_mode: match config.search_mode {
-                SearchMode::LibraryFree => RunnerSearchMode::LibraryFree,
-                SearchMode::Mbr => RunnerSearchMode::Mbr,
-            },
-            fdr_thresh: config.fdr_thresh,
-            threads: config.threads,
-            results_dir: config.results_dir,
-            mzml_files: config.mzml_files,
-            img: None,
-        };
-
-        // Store job state in a global registry
-        let output = Arc::new(Mutex::new(String::new()));
-        let exit_code = Arc::new(Mutex::new(None::<i32>));
-        let running = Arc::new(Mutex::new(true));
-
-        {
-            let mut jobs = JOBS.lock().await;
-            jobs.insert(job_id.clone(), JobState {
-                output: output.clone(),
-                exit_code: exit_code.clone(),
-                running: running.clone(),
-            });
-        }
-
-        let output_clone = output.clone();
-        let exit_code_clone = exit_code.clone();
-        let running_clone = running.clone();
-
-        // Spawn the job in a background thread
-        tokio::task::spawn_blocking(move || {
-            let rt = tokio::runtime::Handle::current();
-
-            let result = run_pythia_scry(runner_config, |line| {
-                let output = output_clone.clone();
-                let line = line.to_string();
-                rt.block_on(async {
-                    let mut output = output.lock().await;
-                    if !output.is_empty() {
-                        output.push('\n');
-                    }
-                    output.push_str(&line);
-                });
-            });
-
-            rt.block_on(async {
-                match result {
-                    Ok(code) => {
-                        let mut output = output_clone.lock().await;
-                        output.push_str(&format!("\n--- Process exited with code {} ---", code));
-                        *exit_code_clone.lock().await = Some(code);
-                    }
-                    Err(e) => {
-                        let mut output = output_clone.lock().await;
-                        output.push_str(&format!("\n--- Failed to run: {} ---", e));
-                        *exit_code_clone.lock().await = Some(-1);
-                    }
-                }
-                *running_clone.lock().await = false;
-            });
-        });
-
-        Ok(RunResult { job_id })
-    }
-
-    /// Get the current status of a running job
-    #[server(GetJobStatus)]
-    pub async fn get_job_status(job_id: String) -> Result<JobStatus, ServerFnError> {
-        let jobs = JOBS.lock().await;
-
-        if let Some(job) = jobs.get(&job_id) {
-            let output = job.output.lock().await.clone();
-            let exit_code = *job.exit_code.lock().await;
-            let running = *job.running.lock().await;
-
-            Ok(JobStatus {
-                running,
-                output,
-                exit_code,
-            })
-        } else {
-            Err(ServerFnError::new("Job not found"))
-        }
-    }
-}
-
-#[cfg(any(feature = "server", feature = "web"))]
-pub use fullstack_impl::*;
-
-// ============================================================================
-// Desktop Implementation - runs locally without server functions
-// ============================================================================
-#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-mod desktop_impl {
+#[cfg(not(target_arch = "wasm32"))]
+mod shared_impl {
     use super::*;
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use once_cell::sync::Lazy;
+    use std::path::PathBuf;
 
-    struct JobState {
-        output: Arc<Mutex<String>>,
-        exit_code: Arc<Mutex<Option<i32>>>,
-        running: Arc<Mutex<bool>>,
+    pub(super) struct JobState {
+        pub output: Arc<Mutex<String>>,
+        pub exit_code: Arc<Mutex<Option<i32>>>,
+        pub running: Arc<Mutex<bool>>,
     }
 
-    static JOBS: Lazy<Mutex<HashMap<String, JobState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+    pub(super) static JOBS: Lazy<Mutex<HashMap<String, JobState>>> =
+        Lazy::new(|| Mutex::new(HashMap::new()));
 
-    /// List directory contents for the file browser (desktop - runs locally)
-    pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
-        use std::path::PathBuf;
-
+    pub fn list_directory_impl(path: Option<String>) -> Result<DirectoryListing, String> {
         let path = path.unwrap_or_else(|| {
             dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/"))
@@ -258,11 +72,9 @@ mod desktop_impl {
 
         let path_buf = PathBuf::from(&path);
         let canonical = path_buf.canonicalize().map_err(|e| e.to_string())?;
-
         let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
 
         let mut entries = Vec::new();
-
         let read_dir = std::fs::read_dir(&canonical).map_err(|e| e.to_string())?;
 
         for entry in read_dir {
@@ -270,7 +82,6 @@ mod desktop_impl {
             let metadata = entry.metadata().map_err(|e| e.to_string())?;
             let name = entry.file_name().to_string_lossy().to_string();
 
-            // Skip hidden files
             if name.starts_with('.') {
                 continue;
             }
@@ -282,7 +93,6 @@ mod desktop_impl {
             });
         }
 
-        // Sort: directories first, then files, alphabetically
         entries.sort_by(|a, b| {
             match (a.is_dir, b.is_dir) {
                 (true, false) => std::cmp::Ordering::Less,
@@ -298,13 +108,17 @@ mod desktop_impl {
         })
     }
 
-    /// Start a pythia-scry job (desktop - runs locally)
-    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {
+    pub async fn start_pythia_scry_impl<F>(
+        config: RunConfig,
+        spawn_fn: F,
+    ) -> Result<RunResult, String>
+    where
+        F: FnOnce(Box<dyn FnOnce() + Send>) + Send + 'static,
+    {
         use crate::runner::{RunConfig as RunnerConfig, SearchMode as RunnerSearchMode, run_pythia_scry};
 
         let job_id = uuid::Uuid::new_v4().to_string();
 
-        // Convert from serde-compatible types to runner types
         let runner_config = RunnerConfig {
             library: config.library,
             fasta: config.fasta,
@@ -320,7 +134,6 @@ mod desktop_impl {
             img: None,
         };
 
-        // Store job state in a global registry
         let output = Arc::new(Mutex::new(String::new()));
         let exit_code = Arc::new(Mutex::new(None::<i32>));
         let running = Arc::new(Mutex::new(true));
@@ -338,12 +151,10 @@ mod desktop_impl {
         let exit_code_clone = exit_code.clone();
         let running_clone = running.clone();
 
-        // Spawn the job in a background thread
-        std::thread::spawn(move || {
+        spawn_fn(Box::new(move || {
             let result = run_pythia_scry(runner_config, |line| {
                 let output = output_clone.clone();
                 let line = line.to_string();
-                // Use block_on for sync context
                 futures_lite::future::block_on(async {
                     let mut output = output.lock().await;
                     if !output.is_empty() {
@@ -368,13 +179,12 @@ mod desktop_impl {
                 }
                 *running_clone.lock().await = false;
             });
-        });
+        }));
 
         Ok(RunResult { job_id })
     }
 
-    /// Get the current status of a running job (desktop - runs locally)
-    pub async fn get_job_status(job_id: String) -> Result<JobStatus, String> {
+    pub async fn get_job_status_impl(job_id: String) -> Result<JobStatus, String> {
         let jobs = JOBS.lock().await;
 
         if let Some(job) = jobs.get(&job_id) {
@@ -390,6 +200,60 @@ mod desktop_impl {
         } else {
             Err("Job not found".to_string())
         }
+    }
+}
+
+// ============================================================================
+// Fullstack (Server + Web) Implementation - uses #[server] macros
+// ============================================================================
+#[cfg(any(feature = "server", feature = "web"))]
+mod fullstack_impl {
+    use super::*;
+    use dioxus::prelude::*;
+
+    #[server(ListDirectory)]
+    pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, ServerFnError> {
+        shared_impl::list_directory_impl(path).map_err(ServerFnError::new)
+    }
+
+    #[server(StartPythiaScry)]
+    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, ServerFnError> {
+        shared_impl::start_pythia_scry_impl(config, |task| {
+            tokio::task::spawn_blocking(task);
+        })
+        .await
+        .map_err(ServerFnError::new)
+    }
+
+    #[server(GetJobStatus)]
+    pub async fn get_job_status(job_id: String) -> Result<JobStatus, ServerFnError> {
+        shared_impl::get_job_status_impl(job_id).await.map_err(ServerFnError::new)
+    }
+}
+
+#[cfg(any(feature = "server", feature = "web"))]
+pub use fullstack_impl::*;
+
+// ============================================================================
+// Desktop Implementation - runs locally without server functions
+// ============================================================================
+#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
+mod desktop_impl {
+    use super::*;
+
+    pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
+        shared_impl::list_directory_impl(path)
+    }
+
+    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {
+        shared_impl::start_pythia_scry_impl(config, |task| {
+            std::thread::spawn(task);
+        })
+        .await
+    }
+
+    pub async fn get_job_status(job_id: String) -> Result<JobStatus, String> {
+        shared_impl::get_job_status_impl(job_id).await
     }
 }
 
