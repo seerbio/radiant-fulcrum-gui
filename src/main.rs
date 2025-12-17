@@ -24,7 +24,10 @@ fn main() {
 
     #[cfg(feature = "desktop")]
     {
+        let menu = None;
+
         let cfg = Config::new()
+            .with_menu(menu)
             .with_window(
                 WindowBuilder::new()
                     .with_title("Pythia")
