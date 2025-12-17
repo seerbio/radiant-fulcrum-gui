@@ -172,6 +172,19 @@ mod shared_impl {
 }
 
 // ============================================================================
+// Platform-specific spawn function
+// ============================================================================
+#[cfg(feature = "server")]
+fn spawn_blocking_task(task: Box<dyn FnOnce() + Send>) {
+    tokio::task::spawn_blocking(task);
+}
+
+#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
+fn spawn_blocking_task(task: Box<dyn FnOnce() + Send>) {
+    std::thread::spawn(task);
+}
+
+// ============================================================================
 // Fullstack (Server + Web) Implementation - uses #[server] macros
 // ============================================================================
 #[cfg(any(feature = "server", feature = "web"))]
@@ -186,11 +199,9 @@ mod fullstack_impl {
 
     #[server(StartPythiaScry)]
     pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, ServerFnError> {
-        shared_impl::start_pythia_scry_impl(config, |task| {
-            tokio::task::spawn_blocking(task);
-        })
-        .await
-        .map_err(ServerFnError::new)
+        shared_impl::start_pythia_scry_impl(config, super::spawn_blocking_task)
+            .await
+            .map_err(ServerFnError::new)
     }
 
     #[server(GetJobStatus)]
@@ -206,24 +217,16 @@ pub use fullstack_impl::*;
 // Desktop Implementation - runs locally without server functions
 // ============================================================================
 #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-mod desktop_impl {
-    use super::*;
-
-    pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
-        shared_impl::list_directory_impl(path)
-    }
-
-    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {
-        shared_impl::start_pythia_scry_impl(config, |task| {
-            std::thread::spawn(task);
-        })
-        .await
-    }
-
-    pub async fn get_job_status(job_id: String) -> Result<JobStatus, String> {
-        shared_impl::get_job_status_impl(job_id).await
-    }
+pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
+    shared_impl::list_directory_impl(path)
 }
 
 #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-pub use desktop_impl::*;
+pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {
+    shared_impl::start_pythia_scry_impl(config, spawn_blocking_task).await
+}
+
+#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
+pub async fn get_job_status(job_id: String) -> Result<JobStatus, String> {
+    shared_impl::get_job_status_impl(job_id).await
+}
