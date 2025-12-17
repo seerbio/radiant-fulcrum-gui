@@ -171,17 +171,9 @@ mod shared_impl {
     }
 }
 
-// ============================================================================
-// Platform-specific spawn function
-// ============================================================================
-#[cfg(feature = "server")]
+#[cfg(not(feature = "web"))]
 fn spawn_blocking_task(task: Box<dyn FnOnce() + Send>) {
     tokio::task::spawn_blocking(task);
-}
-
-#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-fn spawn_blocking_task(task: Box<dyn FnOnce() + Send>) {
-    std::thread::spawn(task);
 }
 
 // ============================================================================
