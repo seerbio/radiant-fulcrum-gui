@@ -6,6 +6,7 @@ use components::{CliForm, ThemeToggle};
 
 mod components;
 mod server_fns;
+mod types;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod runner;

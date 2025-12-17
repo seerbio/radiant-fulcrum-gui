@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
-use crate::server_fns::{SearchMode, RunConfig, start_pythia_scry, get_job_status};
+use crate::types::{SearchMode, RunConfig};
+use crate::server_fns::{start_pythia_scry, get_job_status};
 
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
@@ -220,6 +221,7 @@ pub fn CliForm() -> Element {
                 if r.is_empty() { None } else { Some(r) }
             },
             mzml_files: mzml_files.read().clone(),
+            img: None,
         };
 
         spawn(async move {

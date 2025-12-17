@@ -6,26 +6,9 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use chrono::Local;
+use crate::types::{RunConfig, SearchMode};
 
 const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum SearchMode {
-    LibraryFree,
-    Mbr,
-}
-
-pub struct RunConfig {
-    pub library: String,
-    pub fasta: String,
-    pub config: Option<String>,
-    pub search_mode: SearchMode,
-    pub fdr_thresh: String,
-    pub threads: String,
-    pub results_dir: Option<String>,
-    pub mzml_files: Vec<String>,
-    pub img: Option<String>,
-}
 
 /// Maps host directories to container mount points and provides path remapping
 struct VolumeMapper {

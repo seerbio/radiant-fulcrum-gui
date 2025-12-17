@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::types::{RunConfig, SearchMode};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FileEntry {
@@ -12,24 +13,6 @@ pub struct DirectoryListing {
     pub current_path: String,
     pub parent_path: Option<String>,
     pub entries: Vec<FileEntry>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub enum SearchMode {
-    LibraryFree,
-    Mbr,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RunConfig {
-    pub library: String,
-    pub fasta: String,
-    pub config: Option<String>,
-    pub search_mode: SearchMode,
-    pub fdr_thresh: String,
-    pub threads: String,
-    pub results_dir: Option<String>,
-    pub mzml_files: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,24 +98,9 @@ mod shared_impl {
     where
         F: FnOnce(Box<dyn FnOnce() + Send>) + Send + 'static,
     {
-        use crate::runner::{RunConfig as RunnerConfig, SearchMode as RunnerSearchMode, run_pythia_scry};
+        use crate::runner::run_pythia_scry;
 
         let job_id = uuid::Uuid::new_v4().to_string();
-
-        let runner_config = RunnerConfig {
-            library: config.library,
-            fasta: config.fasta,
-            config: config.config,
-            search_mode: match config.search_mode {
-                SearchMode::LibraryFree => RunnerSearchMode::LibraryFree,
-                SearchMode::Mbr => RunnerSearchMode::Mbr,
-            },
-            fdr_thresh: config.fdr_thresh,
-            threads: config.threads,
-            results_dir: config.results_dir,
-            mzml_files: config.mzml_files,
-            img: None,
-        };
 
         let output = Arc::new(Mutex::new(String::new()));
         let exit_code = Arc::new(Mutex::new(None::<i32>));
@@ -152,7 +120,7 @@ mod shared_impl {
         let running_clone = running.clone();
 
         spawn_fn(Box::new(move || {
-            let result = run_pythia_scry(runner_config, |line| {
+            let result = run_pythia_scry(config, |line| {
                 let output = output_clone.clone();
                 let line = line.to_string();
                 futures_lite::future::block_on(async {
