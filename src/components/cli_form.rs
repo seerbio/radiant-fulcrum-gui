@@ -99,6 +99,21 @@ pub fn CliForm() -> Element {
         storage::save(&last_files);
     };
 
+    let clear_library = move |_| {
+        library.set(String::new());
+        save_last_files();
+    };
+
+    let clear_fasta = move |_| {
+        fasta.set(String::new());
+        save_last_files();
+    };
+
+    let clear_config = move |_| {
+        config.set(String::new());
+        save_last_files();
+    };
+
     let mut add_mzml_files = move |new_paths: Vec<String>| {
         let mut current_files = mzml_files.read().clone();
         for path in new_paths {
@@ -390,9 +405,15 @@ pub fn CliForm() -> Element {
                 div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "Library" }
                     div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text", placeholder: "Select library file...", value: "{library}",
-                            oninput: move |e| library.set(e.value().clone()), required: true }
+                        div { class: "flex-1 relative group",
+                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                r#type: "text", placeholder: "Select library file...", value: "{library}",
+                                oninput: move |e| library.set(e.value().clone()), required: true }
+                            if !library.read().is_empty() {
+                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                    r#type: "button", onclick: clear_library, title: "Clear", "×" }
+                            }
+                        }
                         button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
                             r#type: "button", onclick: pick_library, "Browse" }
                     }
@@ -401,9 +422,15 @@ pub fn CliForm() -> Element {
                 div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "FASTA" }
                     div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text", placeholder: "Select FASTA file...", value: "{fasta}",
-                            oninput: move |e| fasta.set(e.value().clone()), required: true }
+                        div { class: "flex-1 relative group",
+                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                r#type: "text", placeholder: "Select FASTA file...", value: "{fasta}",
+                                oninput: move |e| fasta.set(e.value().clone()), required: true }
+                            if !fasta.read().is_empty() {
+                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                    r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
+                            }
+                        }
                         button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
                             r#type: "button", onclick: pick_fasta, "Browse" }
                     }
@@ -442,9 +469,15 @@ pub fn CliForm() -> Element {
                             div { class: "flex flex-col gap-1",
                                 label { class: "text-sm font-medium dark:text-gray-200", "Pythia Config (optional)" }
                                 div { class: "flex gap-2",
-                                    input { class: "flex-1 p-2 border rounded dark:bg_gray-900 dark:text-gray-100",
-                                        r#type: "text", placeholder: "Select .pythiaConfig file...", value: "{config}",
-                                        oninput: move |e| config.set(e.value().clone()) }
+                                    div { class: "flex-1 relative group",
+                                        input { class: "w-full p-2 pr-8 border rounded dark:bg_gray-900 dark:text-gray-100",
+                                            r#type: "text", placeholder: "Select .pythiaConfig file...", value: "{config}",
+                                            oninput: move |e| config.set(e.value().clone()) }
+                                        if !config.read().is_empty() {
+                                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                                r#type: "button", onclick: clear_config, title: "Clear", "×" }
+                                        }
+                                    }
                                     button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
                                         r#type: "button", onclick: pick_config, "Browse" }
                                 }
