@@ -1,9 +1,11 @@
 use std::process::{Command, Stdio};
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::sync::mpsc;
 use std::thread;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::fs::{self, File};
+use chrono::Local;
 
 const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
 
@@ -189,6 +191,20 @@ where
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
 
+    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
+    let log_filename = format!("pythia-scry-{}.log", timestamp);
+
+    // If no results directory is configured, the CLI will create one in the
+    // current working dir; we can just write our log to "." to keep things simple.
+    let log_dir = config.results_dir.as_ref()
+        .filter(|dir| !dir.is_empty())
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    let mut log_file = fs::create_dir_all(log_dir)
+        .ok()
+        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
+
     // Use a channel to collect output from both stdout and stderr concurrently
     let (tx, rx) = mpsc::channel::<String>();
 
@@ -220,6 +236,9 @@ where
     // Receive and output lines as they come in from either stream
     for line in rx {
         on_output(&line);
+        if let Some(ref mut file) = log_file {
+            let _ = writeln!(file, "{}", line);
+        }
     }
 
     // Wait for reader threads to finish
