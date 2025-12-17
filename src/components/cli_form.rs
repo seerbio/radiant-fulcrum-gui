@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::types::{SearchMode, RunConfig};
 use crate::server_fns::{start_pythia_scry, get_job_status};
+use crate::storage;
 
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
@@ -67,6 +68,37 @@ pub fn CliForm() -> Element {
     #[cfg(not(feature = "desktop"))]
     let mut show_browser = use_signal(|| None::<BrowserTarget>);
 
+    use_effect(move || {
+        let last_files = storage::load();
+        if let Some(lib) = last_files.library {
+            library.set(lib);
+        }
+        if let Some(fas) = last_files.fasta {
+            fasta.set(fas);
+        }
+        if let Some(cfg) = last_files.config {
+            config.set(cfg);
+        }
+    });
+
+    let save_last_files = move || {
+        let last_files = storage::LastFiles {
+            library: {
+                let lib = library.read().clone();
+                if lib.is_empty() { None } else { Some(lib) }
+            },
+            fasta: {
+                let fas = fasta.read().clone();
+                if fas.is_empty() { None } else { Some(fas) }
+            },
+            config: {
+                let cfg = config.read().clone();
+                if cfg.is_empty() { None } else { Some(cfg) }
+            },
+        };
+        storage::save(&last_files);
+    };
+
     let mut add_mzml_files = move |new_paths: Vec<String>| {
         let mut current_files = mzml_files.read().clone();
         for path in new_paths {
@@ -79,9 +111,18 @@ pub fn CliForm() -> Element {
 
     let mut handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
         match target {
-            BrowserTarget::Library => if let Some(path) = paths.first() { library.set(path.clone()); },
-            BrowserTarget::Fasta => if let Some(path) = paths.first() { fasta.set(path.clone()); },
-            BrowserTarget::Config => if let Some(path) = paths.first() { config.set(path.clone()); },
+            BrowserTarget::Library => if let Some(path) = paths.first() {
+                library.set(path.clone());
+                save_last_files();
+            },
+            BrowserTarget::Fasta => if let Some(path) = paths.first() {
+                fasta.set(path.clone());
+                save_last_files();
+            },
+            BrowserTarget::Config => if let Some(path) = paths.first() {
+                config.set(path.clone());
+                save_last_files();
+            },
             BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
             BrowserTarget::MzmlFiles => add_mzml_files(paths),
         }
