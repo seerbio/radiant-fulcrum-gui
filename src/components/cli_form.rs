@@ -322,8 +322,6 @@ pub fn CliForm() -> Element {
 
                 div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
-                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_mzml, "Browse" }
                     div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
                         if mzml_files.read().is_empty() {
                             "No files selected"
@@ -344,6 +342,8 @@ pub fn CliForm() -> Element {
                             }
                         }
                     }
+                    button { class: "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                        r#type: "button", onclick: pick_mzml, "Browse" }
                 }
 
                 div { class: "flex flex-col gap-1",
