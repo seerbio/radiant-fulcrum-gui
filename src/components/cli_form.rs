@@ -254,8 +254,6 @@ pub fn CliForm() -> Element {
         });
     };
 
-    let mzml_display = mzml_files.read().join(", ");
-
     // Build the file browser element for non-desktop builds
     #[cfg(not(feature = "desktop"))]
     let file_browser_element = {

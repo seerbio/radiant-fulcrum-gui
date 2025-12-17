@@ -8,7 +8,17 @@ use std::fs::{self, File};
 use chrono::Local;
 use crate::types::{RunConfig, SearchMode};
 
-const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
+mod config_img {
+    pub use crate::types::RunConfig;
+
+    const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
+
+    impl RunConfig {
+        pub fn get_img(&self) -> String {
+            self.img.to_owned().unwrap_or(DEFAULT_IMG.to_string())
+        }
+    }
+}
 
 /// Maps host directories to container mount points and provides path remapping
 struct VolumeMapper {
@@ -85,6 +95,63 @@ pub fn run_pythia_scry<F>(config: RunConfig, mut on_output: F) -> io::Result<i32
 where
     F: FnMut(&str),
 {
+    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
+    let log_filename = format!("pythia-scry-{}.log", timestamp);
+
+    // If no results directory is configured, the CLI will create one in the
+    // current working dir; we can just write our log to "." to keep things simple.
+    let log_dir = config.results_dir.as_ref()
+        .filter(|dir| !dir.is_empty())
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    let mut log_file = fs::create_dir_all(log_dir)
+        .ok()
+        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
+
+    let img = config.get_img();
+
+    // Check that we can run docker
+    match run_command(&mut |_| {}, Command::new("which").arg("docker"), &mut None) {
+        Ok(i) if i == 0 =>  {}
+        _ => {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "Unable to locate `docker` executable"));
+        }
+    }
+
+    // Check that the image can be run, and get the Pythia version
+    let mut version_check = Command::new("docker");
+    version_check.args(vec![
+            "run".to_string(),
+            "--rm".to_string(),
+            img.to_owned(),
+            // Note: the docker image currently doesn't encode a useful version number into the package metadata.
+            // If this changes in the future we can reenable this command and the output code below.
+            // r"apt-cache policy pythiadia | grep -Po '(?<=Installed: )((?:\d+\.)*\d+)'".to_string(),
+            "which".to_string(), "pythia_scry".to_string(),
+        ]);
+
+    // Note: re-enable this once we're able to get a useful version number for Pythia.
+    // let mut ver: Option<String>  = None;
+    // match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut  version_check, &mut None) {
+
+    match run_command(&mut |_| {}, &mut  version_check, &mut None) {
+        Ok(i) if i == 0 =>  {
+            // Note: re-enable this once we're able to get a useful version number for Pythia.
+            // let msg = format!("Found Pythia version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
+            // on_output(msg.as_str());
+            // if let Some(ref mut file) = log_file {
+            //     let _ = writeln!(file, "{}", msg);
+            // }
+        }
+        Ok(i) => {
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Pythia Docker image! Exit code {}", i)));
+        }
+        Err(_) => {
+            return Err(io::Error::new(io::ErrorKind::Other, "Unable to run Pythia Docker image!"));
+        }
+    }
+
     let mut mapper = VolumeMapper::new();
 
     // Remap all file paths to container paths
@@ -148,8 +215,6 @@ where
 
     on_output(&format!("Running {args:?}"));
 
-    let img = config.img.unwrap_or(DEFAULT_IMG.to_string());
-
     let mut cmd = Command::new("docker");
     cmd.arg("run").arg("--rm");
 
@@ -159,6 +224,13 @@ where
 
     cmd.arg(img).args(&args);
 
+    run_command(&mut on_output, &mut cmd, &mut log_file)
+}
+
+fn run_command<F>(on_output: &mut F, cmd: &mut Command, log_file: &mut Option<File>) -> Result<i32, io::Error>
+where
+    F: FnMut(&str)
+{
     let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -166,20 +238,6 @@ where
 
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-
-    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_filename = format!("pythia-scry-{}.log", timestamp);
-
-    // If no results directory is configured, the CLI will create one in the
-    // current working dir; we can just write our log to "." to keep things simple.
-    let log_dir = config.results_dir.as_ref()
-        .filter(|dir| !dir.is_empty())
-        .map(|s| s.as_str())
-        .unwrap_or(".");
-
-    let mut log_file = fs::create_dir_all(log_dir)
-        .ok()
-        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
 
     // Use a channel to collect output from both stdout and stderr concurrently
     let (tx, rx) = mpsc::channel::<String>();
