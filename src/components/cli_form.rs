@@ -61,89 +61,107 @@ pub fn CliForm() -> Element {
     let mut output = use_signal(String::new);
     let mut running = use_signal(|| false);
     let mut job_id = use_signal(|| None::<String>);
+    let mut show_advanced = use_signal(|| false);
 
     #[cfg(not(feature = "desktop"))]
     let mut show_browser = use_signal(|| None::<BrowserTarget>);
 
-    #[cfg(feature = "desktop")]
-    let pick_library = move |_| {
-        spawn(async move {
-            let dialog = apply_last_dir(
-                rfd::AsyncFileDialog::new()
-                    .add_filter("Library", &["tsv", "parquet", "speclib"])
-            );
-
-            if let Some(path) = dialog.pick_file().await {
-                let path_str = path.path().display().to_string();
-                library.set(path_str.clone());
-                update_last_dir_from_file(&path_str);
+    let mut add_mzml_files = move |new_paths: Vec<String>| {
+        let mut current_files = mzml_files.read().clone();
+        for path in new_paths {
+            if !current_files.contains(&path) {
+                current_files.push(path);
             }
-        });
+        }
+        mzml_files.set(current_files);
+    };
+
+    let mut handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
+        match target {
+            BrowserTarget::Library => if let Some(path) = paths.first() { library.set(path.clone()); },
+            BrowserTarget::Fasta => if let Some(path) = paths.first() { fasta.set(path.clone()); },
+            BrowserTarget::Config => if let Some(path) = paths.first() { config.set(path.clone()); },
+            BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
+            BrowserTarget::MzmlFiles => add_mzml_files(paths),
+        }
     };
 
     #[cfg(feature = "desktop")]
-    let pick_fasta = move |_| {
+    let pick_file = move |target: BrowserTarget| {
         spawn(async move {
-            let dialog = apply_last_dir(
-                rfd::AsyncFileDialog::new()
-                    .add_filter("FASTA", &["fasta", "fas"])
-            );
-
-            if let Some(path) = dialog.pick_file().await {
-                let path_str = path.path().display().to_string();
-                fasta.set(path_str.clone());
-                update_last_dir_from_file(&path_str);
-            }
-        });
-    };
-
-    #[cfg(feature = "desktop")]
-    let pick_config = move |_| {
-        spawn(async move {
-            let dialog = apply_last_dir(
-                rfd::AsyncFileDialog::new()
-                    .add_filter("Pythia Config", &["pythiaConfig"])
-            );
-
-            if let Some(path) = dialog.pick_file().await {
-                let path_str = path.path().display().to_string();
-                config.set(path_str.clone());
-                update_last_dir_from_file(&path_str);
-            }
-        });
-    };
-
-    #[cfg(feature = "desktop")]
-    let pick_mzml = move |_| {
-        spawn(async move {
-            let dialog = apply_last_dir(
-                rfd::AsyncFileDialog::new()
-                    .add_filter("mzML", &["mzML", "mzml"])
-            );
-
-            let files = dialog.pick_files().await;
-            if let Some(files) = files {
-                let paths: Vec<String> = files.iter().map(|f| f.path().display().to_string()).collect();
-                if let Some(first) = paths.first() {
-                    update_last_dir_from_file(first);
+            match target {
+                BrowserTarget::Library => {
+                    let dialog = apply_last_dir(
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("Library", &["tsv", "parquet", "speclib"])
+                    );
+                    if let Some(path) = dialog.pick_file().await {
+                        let path_str = path.path().display().to_string();
+                        update_last_dir_from_file(&path_str);
+                        handle_file_selection(target, vec![path_str]);
+                    }
                 }
-                mzml_files.set(paths);
+                BrowserTarget::Fasta => {
+                    let dialog = apply_last_dir(
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("FASTA", &["fasta", "fas"])
+                    );
+                    if let Some(path) = dialog.pick_file().await {
+                        let path_str = path.path().display().to_string();
+                        update_last_dir_from_file(&path_str);
+                        handle_file_selection(target, vec![path_str]);
+                    }
+                }
+                BrowserTarget::Config => {
+                    let dialog = apply_last_dir(
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("Pythia Config", &["pythiaConfig"])
+                    );
+                    if let Some(path) = dialog.pick_file().await {
+                        let path_str = path.path().display().to_string();
+                        update_last_dir_from_file(&path_str);
+                        handle_file_selection(target, vec![path_str]);
+                    }
+                }
+                BrowserTarget::MzmlFiles => {
+                    let dialog = apply_last_dir(
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("mzML", &["mzML", "mzml"])
+                    );
+                    if let Some(files) = dialog.pick_files().await {
+                        let new_paths: Vec<String> = files.iter().map(|f| f.path().display().to_string()).collect();
+                        if let Some(first) = new_paths.first() {
+                            update_last_dir_from_file(first);
+                        }
+                        handle_file_selection(target, new_paths);
+                    }
+                }
+                BrowserTarget::ResultsDir => {
+                    let dialog = apply_last_dir(rfd::AsyncFileDialog::new());
+                    if let Some(path) = dialog.pick_folder().await {
+                        let path_str = path.path().display().to_string();
+                        update_last_dir(&path_str);
+                        handle_file_selection(target, vec![path_str]);
+                    }
+                }
             }
         });
     };
 
     #[cfg(feature = "desktop")]
-    let pick_results_dir = move |_| {
-        spawn(async move {
-            let dialog = apply_last_dir(rfd::AsyncFileDialog::new());
+    let pick_library = move |_| pick_file(BrowserTarget::Library);
 
-            if let Some(path) = dialog.pick_folder().await {
-                let path_str = path.path().display().to_string();
-                results_dir.set(path_str.clone());
-                update_last_dir(&path_str);
-            }
-        });
-    };
+    #[cfg(feature = "desktop")]
+    let pick_fasta = move |_| pick_file(BrowserTarget::Fasta);
+
+    #[cfg(feature = "desktop")]
+    let pick_config = move |_| pick_file(BrowserTarget::Config);
+
+    #[cfg(feature = "desktop")]
+    let pick_mzml = move |_| pick_file(BrowserTarget::MzmlFiles);
+
+    #[cfg(feature = "desktop")]
+    let pick_results_dir = move |_| pick_file(BrowserTarget::ResultsDir);
 
     #[cfg(not(feature = "desktop"))]
     let pick_library = move |_| show_browser.set(Some(BrowserTarget::Library));
@@ -163,13 +181,7 @@ pub fn CliForm() -> Element {
     #[cfg(not(feature = "desktop"))]
     let on_browser_select = move |paths: Vec<String>| {
         if let Some(target) = *show_browser.read() {
-            match target {
-                BrowserTarget::Library => if let Some(path) = paths.first() { library.set(path.clone()); },
-                BrowserTarget::Fasta => if let Some(path) = paths.first() { fasta.set(path.clone()); },
-                BrowserTarget::Config => if let Some(path) = paths.first() { config.set(path.clone()); },
-                BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
-                BrowserTarget::MzmlFiles => mzml_files.set(paths),
-            }
+            handle_file_selection(target, paths);
         }
         show_browser.set(None);
     };
@@ -291,6 +303,50 @@ pub fn CliForm() -> Element {
                 h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Pythia Scry Workflow" }
 
                 div { class: "flex flex-col gap-1",
+                    label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
+                    div { class: "flex gap-4 dark:text-gray-200",
+                        label { class: "flex items-center gap-2",
+                            input { r#type: "radio", name: "search_mode",
+                                checked: *search_mode.read() == SearchMode::LibraryFree,
+                                onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
+                            "Library-free"
+                        }
+                        label { class: "flex items-center gap-2",
+                            input { r#type: "radio", name: "search_mode",
+                                checked: *search_mode.read() == SearchMode::Mbr,
+                                onchange: move |_| search_mode.set(SearchMode::Mbr) }
+                            "Match Between Runs (MBR)"
+                        }
+                    }
+                }
+
+                div { class: "flex flex-col gap-1",
+                    label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
+                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                        r#type: "button", onclick: pick_mzml, "Browse" }
+                    div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
+                        if mzml_files.read().is_empty() {
+                            "No files selected"
+                        } else {
+                            for (idx, file) in mzml_files.read().iter().enumerate() {
+                                div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
+                                    span { class: "flex-1 truncate", title: "{file}", "{file}" }
+                                    button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
+                                        r#type: "button",
+                                        onclick: move |_| {
+                                            let mut files = mzml_files.read().clone();
+                                            files.remove(idx);
+                                            mzml_files.set(files);
+                                        },
+                                        "×"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "Library" }
                     div { class: "flex gap-2",
                         input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
@@ -313,49 +369,6 @@ pub fn CliForm() -> Element {
                 }
 
                 div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Config (optional)" }
-                    div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text", placeholder: "Select .pythiaConfig file...", value: "{config}",
-                            oninput: move |e| config.set(e.value().clone()) }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_config, "Browse" }
-                    }
-                }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
-                    div { class: "flex gap-4 dark:text-gray-200",
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::LibraryFree,
-                                onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
-                            "Library-free"
-                        }
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::Mbr,
-                                onchange: move |_| search_mode.set(SearchMode::Mbr) }
-                            "Match Between Runs (MBR)"
-                        }
-                    }
-                }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
-                    input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                        r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
-                        oninput: move |e| fdr_thresh.set(e.value().clone()) }
-                }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
-                    input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                        r#type: "number", min: "0", value: "{threads}",
-                        oninput: move |e| threads.set(e.value().clone()) }
-                }
-
-                div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
                     div { class: "flex gap-2",
                         input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
@@ -366,14 +379,43 @@ pub fn CliForm() -> Element {
                     }
                 }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
-                    div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text", placeholder: "Select mzML files...", value: "{mzml_display}",
-                            readonly: true }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_mzml, "Browse" }
+                div { class: "flex flex-col gap-2 mt-2",
+                    button { class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let current = *show_advanced.read();
+                            show_advanced.set(!current);
+                        },
+                        if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
+                    }
+
+                    if *show_advanced.read() {
+                        div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
+                            div { class: "flex flex-col gap-1",
+                                label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
+                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                    r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
+                                    oninput: move |e| fdr_thresh.set(e.value().clone()) }
+                            }
+
+                            div { class: "flex flex-col gap-1",
+                                label { class: "text-sm font-medium dark:text-gray-200", "Pythia Config (optional)" }
+                                div { class: "flex gap-2",
+                                    input { class: "flex-1 p-2 border rounded dark:bg_gray-900 dark:text-gray-100",
+                                        r#type: "text", placeholder: "Select .pythiaConfig file...", value: "{config}",
+                                        oninput: move |e| config.set(e.value().clone()) }
+                                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                                        r#type: "button", onclick: pick_config, "Browse" }
+                                }
+                            }
+
+                            div { class: "flex flex-col gap-1",
+                                label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
+                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                    r#type: "number", min: "0", value: "{threads}",
+                                    oninput: move |e| threads.set(e.value().clone()) }
+                            }
+                        }
                     }
                 }
 
