@@ -25,28 +25,36 @@ impl VolumeMapper {
         }
     }
 
-    /// Registers a file path and returns the remapped container path
-    fn remap_file(&mut self, host_path: &str) -> io::Result<String> {
+    fn canonicalize_path(host_path: &str) -> io::Result<PathBuf> {
         let path = Path::new(host_path);
         let abs_path = if path.is_absolute() {
             path.to_path_buf()
         } else {
             std::env::current_dir()?.join(path)
         };
-        let abs_path = abs_path.canonicalize().unwrap_or(abs_path);
+        Ok(abs_path.canonicalize().unwrap_or(abs_path))
+    }
+
+    fn get_or_create_mount(&mut self, host_dir: PathBuf) -> PathBuf {
+        if let Some(existing) = self.mounts.get(&host_dir) {
+            existing.clone()
+        } else {
+            let mount_point = PathBuf::from(format!("/data{}", self.mount_counter));
+            self.mount_counter += 1;
+            self.mounts.insert(host_dir, mount_point.clone());
+            mount_point
+        }
+    }
+
+    /// Registers a file path and returns the remapped container path
+    fn remap_file(&mut self, host_path: &str) -> io::Result<String> {
+        let abs_path = Self::canonicalize_path(host_path)?;
 
         let parent = abs_path.parent().ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidInput, "Path has no parent directory")
         })?;
 
-        let mount_point = if let Some(existing) = self.mounts.get(parent) {
-            existing.clone()
-        } else {
-            let mount_point = PathBuf::from(format!("/data{}", self.mount_counter));
-            self.mount_counter += 1;
-            self.mounts.insert(parent.to_path_buf(), mount_point.clone());
-            mount_point
-        };
+        let mount_point = self.get_or_create_mount(parent.to_path_buf());
 
         let file_name = abs_path.file_name().ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidInput, "Path has no file name")
@@ -57,23 +65,8 @@ impl VolumeMapper {
 
     /// Registers a directory path and returns the remapped container path
     fn remap_dir(&mut self, host_path: &str) -> io::Result<String> {
-        let path = Path::new(host_path);
-        let abs_path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            std::env::current_dir()?.join(path)
-        };
-        let abs_path = abs_path.canonicalize().unwrap_or(abs_path);
-
-        let mount_point = if let Some(existing) = self.mounts.get(&abs_path) {
-            existing.clone()
-        } else {
-            let mount_point = PathBuf::from(format!("/data{}", self.mount_counter));
-            self.mount_counter += 1;
-            self.mounts.insert(abs_path, mount_point.clone());
-            mount_point
-        };
-
+        let abs_path = Self::canonicalize_path(host_path)?;
+        let mount_point = self.get_or_create_mount(abs_path);
         Ok(mount_point.to_string_lossy().to_string())
     }
 
