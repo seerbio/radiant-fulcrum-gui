@@ -17,5 +17,5 @@ pub struct RunConfig {
     pub results_dir: Option<String>,
     pub mzml_files: Vec<String>,
     pub img: Option<String>,
+    pub check_image_updates: bool,
 }
-

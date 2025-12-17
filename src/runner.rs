@@ -113,9 +113,21 @@ where
 
     // Check that we can run docker
     match run_command(&mut |_| {}, Command::new("which").arg("docker"), &mut None) {
-        Ok(i) if i == 0 =>  {}
+        Ok(0) =>  {}
         _ => {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Unable to locate `docker` executable"));
+        }
+    }
+
+    if config.check_image_updates {
+        match pull_image(&img, &mut on_output) {
+            Ok(0) => {}
+            Ok(i) => {
+                return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! Exit code {}", i)));
+            }
+            Err(e) => {
+                return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! {}", e)));
+            }
         }
     }
 
@@ -133,10 +145,10 @@ where
 
     // Note: re-enable this once we're able to get a useful version number for Pythia.
     // let mut ver: Option<String>  = None;
-    // match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut  version_check, &mut None) {
+    // match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut version_check, &mut None) {
 
-    match run_command(&mut |_| {}, &mut  version_check, &mut None) {
-        Ok(i) if i == 0 =>  {
+    match run_command(&mut |_| {}, &mut version_check, &mut None) {
+        Ok(0) =>  {
             // Note: re-enable this once we're able to get a useful version number for Pythia.
             // let msg = format!("Found Pythia version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
             // on_output(msg.as_str());
@@ -147,8 +159,8 @@ where
         Ok(i) => {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Pythia Docker image! Exit code {}", i)));
         }
-        Err(_) => {
-            return Err(io::Error::new(io::ErrorKind::Other, "Unable to run Pythia Docker image!"));
+        Err(e) => {
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Pythia Docker image! {}", e)));
         }
     }
 
@@ -225,6 +237,22 @@ where
     cmd.arg(img).args(&args);
 
     run_command(&mut on_output, &mut cmd, &mut log_file)
+}
+
+fn pull_image<F>(img: &String, mut on_output: F) -> Result<i32, io::Error>
+where
+    F: FnMut(&str),
+{
+    on_output(format!("Checking for updates of Docker image tag {}", img).as_str());
+
+    // Check that the image can be run, and get the Pythia version
+    let mut update_check = Command::new("docker");
+    update_check.args(vec![
+        "pull".to_string(),
+        img.to_owned(),
+    ]);
+
+    run_command(&mut on_output, &mut update_check, &mut None)
 }
 
 fn run_command<F>(on_output: &mut F, cmd: &mut Command, log_file: &mut Option<File>) -> Result<i32, io::Error>

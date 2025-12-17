@@ -62,6 +62,7 @@ pub fn CliForm() -> Element {
     let mut running = use_signal(|| false);
     let mut job_id = use_signal(|| None::<String>);
     let mut show_advanced = use_signal(|| false);
+    let mut check_image_updates = use_signal(|| false);
 
     #[cfg(not(feature = "desktop"))]
     let mut show_browser = use_signal(|| None::<BrowserTarget>);
@@ -239,6 +240,7 @@ pub fn CliForm() -> Element {
             },
             mzml_files: mzml_files.read().clone(),
             img: None,
+            check_image_updates: *check_image_updates.read(),
         };
 
         spawn(async move {
@@ -412,6 +414,15 @@ pub fn CliForm() -> Element {
                                 input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
                                     r#type: "number", min: "0", value: "{threads}",
                                     oninput: move |e| threads.set(e.value().clone()) }
+                            }
+
+                            div { class: "flex flex-col gap-1",
+                                label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
+                                    input { r#type: "checkbox",
+                                        checked: *check_image_updates.read(),
+                                        onchange: move |e| check_image_updates.set(e.checked()) }
+                                    "Check for Docker image updates"
+                                }
                             }
                         }
                     }
