@@ -5,7 +5,6 @@ use crate::server_fns::{start_pythia_scry, get_job_status};
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
 
-/// Platform-agnostic sleep function
 async fn sleep_ms(ms: u64) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -40,137 +39,98 @@ pub fn CliForm() -> Element {
     let mut running = use_signal(|| false);
     let mut job_id = use_signal(|| None::<String>);
 
-    // File browser state (for non-desktop builds)
-    #[allow(unused_variables)]
+    #[cfg(not(feature = "desktop"))]
     let mut show_browser = use_signal(|| None::<BrowserTarget>);
 
-    // Desktop-only: use native file dialogs
     #[cfg(feature = "desktop")]
     let pick_library = move |_| {
-        let library = library.clone();
         spawn(async move {
             if let Some(path) = rfd::AsyncFileDialog::new()
                 .add_filter("Library", &["tsv", "parquet", "speclib"])
                 .pick_file().await
             {
-                library.clone().set(path.path().display().to_string());
+                library.set(path.path().display().to_string());
             }
         });
     };
 
     #[cfg(feature = "desktop")]
     let pick_fasta = move |_| {
-        let fasta = fasta.clone();
         spawn(async move {
             if let Some(path) = rfd::AsyncFileDialog::new()
                 .add_filter("FASTA", &["fasta", "fas"])
                 .pick_file().await
             {
-                fasta.clone().set(path.path().display().to_string());
+                fasta.set(path.path().display().to_string());
             }
         });
     };
 
     #[cfg(feature = "desktop")]
     let pick_config = move |_| {
-        let config = config.clone();
         spawn(async move {
             if let Some(path) = rfd::AsyncFileDialog::new()
                 .add_filter("Pythia Config", &["pythiaConfig"])
                 .pick_file().await
             {
-                config.clone().set(path.path().display().to_string());
+                config.set(path.path().display().to_string());
             }
         });
     };
 
     #[cfg(feature = "desktop")]
     let pick_mzml = move |_| {
-        let mzml_files = mzml_files.clone();
         spawn(async move {
             let files = rfd::AsyncFileDialog::new()
                 .add_filter("mzML", &["mzML", "mzml"])
                 .pick_files().await;
             if let Some(files) = files {
                 let paths: Vec<String> = files.iter().map(|f| f.path().display().to_string()).collect();
-                mzml_files.clone().set(paths);
+                mzml_files.set(paths);
             }
         });
     };
 
     #[cfg(feature = "desktop")]
     let pick_results_dir = move |_| {
-        let results_dir = results_dir.clone();
         spawn(async move {
             if let Some(path) = rfd::AsyncFileDialog::new().pick_folder().await {
-                results_dir.clone().set(path.path().display().to_string());
+                results_dir.set(path.path().display().to_string());
             }
         });
     };
 
-    // Web/Server: use server-side file browser
     #[cfg(not(feature = "desktop"))]
-    let pick_library = move |_| {
-        show_browser.set(Some(BrowserTarget::Library));
-    };
+    let pick_library = move |_| show_browser.set(Some(BrowserTarget::Library));
 
     #[cfg(not(feature = "desktop"))]
-    let pick_fasta = move |_| {
-        show_browser.set(Some(BrowserTarget::Fasta));
-    };
+    let pick_fasta = move |_| show_browser.set(Some(BrowserTarget::Fasta));
 
     #[cfg(not(feature = "desktop"))]
-    let pick_config = move |_| {
-        show_browser.set(Some(BrowserTarget::Config));
-    };
+    let pick_config = move |_| show_browser.set(Some(BrowserTarget::Config));
 
     #[cfg(not(feature = "desktop"))]
-    let pick_mzml = move |_| {
-        show_browser.set(Some(BrowserTarget::MzmlFiles));
-    };
+    let pick_mzml = move |_| show_browser.set(Some(BrowserTarget::MzmlFiles));
 
     #[cfg(not(feature = "desktop"))]
-    let pick_results_dir = move |_| {
-        show_browser.set(Some(BrowserTarget::ResultsDir));
-    };
+    let pick_results_dir = move |_| show_browser.set(Some(BrowserTarget::ResultsDir));
 
-    // Handle file browser selection (web/server only)
     #[cfg(not(feature = "desktop"))]
     let on_browser_select = move |paths: Vec<String>| {
         if let Some(target) = *show_browser.read() {
             match target {
-                BrowserTarget::Library => {
-                    if let Some(path) = paths.first() {
-                        library.set(path.clone());
-                    }
-                }
-                BrowserTarget::Fasta => {
-                    if let Some(path) = paths.first() {
-                        fasta.set(path.clone());
-                    }
-                }
-                BrowserTarget::Config => {
-                    if let Some(path) = paths.first() {
-                        config.set(path.clone());
-                    }
-                }
-                BrowserTarget::ResultsDir => {
-                    if let Some(path) = paths.first() {
-                        results_dir.set(path.clone());
-                    }
-                }
-                BrowserTarget::MzmlFiles => {
-                    mzml_files.set(paths);
-                }
+                BrowserTarget::Library => if let Some(path) = paths.first() { library.set(path.clone()); },
+                BrowserTarget::Fasta => if let Some(path) = paths.first() { fasta.set(path.clone()); },
+                BrowserTarget::Config => if let Some(path) = paths.first() { config.set(path.clone()); },
+                BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
+                BrowserTarget::MzmlFiles => mzml_files.set(paths),
             }
         }
         show_browser.set(None);
     };
 
     #[cfg(not(feature = "desktop"))]
-    let on_browser_cancel = move |_| {
-        show_browser.set(None);
-    };
+    let on_browser_cancel = move |_| show_browser.set(None);
 
     // Poll for job status when running
     use_effect(move || {
