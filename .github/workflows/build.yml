@@ -37,9 +37,16 @@ jobs:
         run:
           dx bundle --desktop --release --package-types appimage
       - name: Upload Release Artifacts
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           files: target/dx/pythia-scry-gui/bundle/linux/bundle/appimage/*.AppImage
+      - name: Upload Build Artifacts
+        if: ${{ github.event_name != 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage-${{ matrix.platform.target }}
+          path: target/dx/pythia-scry-gui/bundle/linux/bundle/appimage/*.AppImage
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -62,9 +69,16 @@ jobs:
         run:
           dx bundle --desktop --release --package-types macos
       - name: Upload Release Artifacts
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           files: target/dx/pythia-scry-gui/bundle/macos/bundle/macos/*.app
+      - name: Upload Build Artifacts
+        if: ${{ github.event_name != 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app-${{ matrix.platform.target }}
+          path: target/dx/pythia-scry-gui/bundle/macos/bundle/macos/*.app
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -89,6 +103,13 @@ jobs:
         run:
           dx bundle --desktop --release --features bundle
       - name: Upload Release Artifacts
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           files: target/dx/pythia-scry-gui/bundle/windows/bundle/nsis/*.exe
+      - name: Upload Build Artifacts
+        if: ${{ github.event_name != 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-${{ matrix.platform.target }}
+          path: target/dx/pythia-scry-gui/bundle/windows/bundle/nsis/*.exe
