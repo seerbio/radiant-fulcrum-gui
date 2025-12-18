@@ -28,7 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
       - name: Install Dioxus
-        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
         uses: taiki-e/install-action@v2
         with:
           tool: dioxus-cli
