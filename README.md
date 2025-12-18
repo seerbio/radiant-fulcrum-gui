@@ -72,6 +72,14 @@ Pythia can also use libraries in TSV format from other tools like Skyline, Encyc
 
 Yes! The app runs on Windows, macOS, and Linux.
 
+### Does this work on my M-series Mac?
+
+Yes! This app, Pythia, and Scry are all designed to run natively on ARM processors like the Apple M-series.
+
+### Does this work on my older Intel Mac?
+
+Yes! We also provide an Intel build for Mac.
+
 ### Do I need to install anything besides the app?
 
 You'll need Docker installed to run the workflows. [Get Docker here](https://docs.docker.com/get-docker/).
