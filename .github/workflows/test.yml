@@ -107,4 +107,4 @@ jobs:
           cargo install dioxus-cli
       - name: Build with Dioxus
         run:
-          dx build --web
+          dx build --web --force-sequential true
