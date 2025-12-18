@@ -1,0 +1,94 @@
+name: test
+
+on:
+  release:
+    types: [ created ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-24.04
+            target: x86_64
+#          - runner: ubuntu-24.04
+#            target: aarch64
+    steps:
+      - run: |
+          sudo apt update
+          sudo apt install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+      - name: Install Dioxus
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: dioxus-cli
+      - uses: Swatinem/rust-cache@v2
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+      - name: Build with Dioxus
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+        run:
+          dx bundle --desktop --release --package-types appimage
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/dx/pythia-scry-gui/bundle/linux/bundle/appimage/*.AppImage
+
+  macos:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: macos-15-intel
+            target: x86_64
+          - runner: macos-15
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Dioxus
+        uses: taiki-e/install-action@v2
+        with:
+          tool: dioxus-cli
+      - uses: Swatinem/rust-cache@v2
+      - name: Build with Dioxus
+        run:
+          dx bundle --desktop --release --package-types macos
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/dx/pythia-scry-gui/bundle/macos/bundle/macos/*.app
+
+  windows:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: windows-latest
+            target: x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+      - name: Install Dioxus
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: dioxus-cli
+      - uses: Swatinem/rust-cache@v2
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+      - name: Build with Dioxus
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+        run:
+          dx bundle --desktop --release --features bundle
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/dx/pythia-scry-gui/bundle/windows/bundle/nsis/*.exe
