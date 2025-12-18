@@ -1,19 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::types::{RunConfig, SearchMode};
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FileEntry {
-    pub name: String,
-    pub path: String,
-    pub is_dir: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DirectoryListing {
-    pub current_path: String,
-    pub parent_path: Option<String>,
-    pub entries: Vec<FileEntry>,
-}
+use crate::types::RunConfig;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RunResult {
@@ -27,14 +13,13 @@ pub struct JobStatus {
     pub exit_code: Option<i32>,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "web"))]
 mod shared_impl {
     use super::*;
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use once_cell::sync::Lazy;
-    use std::path::PathBuf;
 
     pub(super) struct JobState {
         pub output: Arc<Mutex<String>>,
@@ -44,52 +29,6 @@ mod shared_impl {
 
     pub(super) static JOBS: Lazy<Mutex<HashMap<String, JobState>>> =
         Lazy::new(|| Mutex::new(HashMap::new()));
-
-    pub fn list_directory_impl(path: Option<String>) -> Result<DirectoryListing, String> {
-        let path = path.unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("/"))
-                .to_string_lossy()
-                .to_string()
-        });
-
-        let path_buf = PathBuf::from(&path);
-        let canonical = path_buf.canonicalize().map_err(|e| e.to_string())?;
-        let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
-
-        let mut entries = Vec::new();
-        let read_dir = std::fs::read_dir(&canonical).map_err(|e| e.to_string())?;
-
-        for entry in read_dir {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let metadata = entry.metadata().map_err(|e| e.to_string())?;
-            let name = entry.file_name().to_string_lossy().to_string();
-
-            if name.starts_with('.') {
-                continue;
-            }
-
-            entries.push(FileEntry {
-                name,
-                path: entry.path().to_string_lossy().to_string(),
-                is_dir: metadata.is_dir(),
-            });
-        }
-
-        entries.sort_by(|a, b| {
-            match (a.is_dir, b.is_dir) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-            }
-        });
-
-        Ok(DirectoryListing {
-            current_path: canonical.to_string_lossy().to_string(),
-            parent_path,
-            entries,
-        })
-    }
 
     pub async fn start_pythia_scry_impl<F>(
         config: RunConfig,
@@ -179,24 +118,97 @@ fn spawn_blocking_task(task: Box<dyn FnOnce() + Send>) {
 // ============================================================================
 // Fullstack (Server + Web) Implementation - uses #[server] macros
 // ============================================================================
+
+#[cfg(any(feature = "web", feature = "server"))]
+mod server_fns {
+    use serde::{Deserialize, Serialize};
+
+    #[cfg(feature = "server")]
+    use std::path::PathBuf;
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+    pub struct FileEntry {
+        pub name: String,
+        pub path: String,
+        pub is_dir: bool,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+    pub struct DirectoryListing {
+        pub current_path: String,
+        pub parent_path: Option<String>,
+        pub entries: Vec<FileEntry>,
+    }
+
+    #[cfg(feature = "server")]
+    pub fn list_directory_impl(path: Option<String>) -> Result<DirectoryListing, String> {
+        let path = path.unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("/"))
+                .to_string_lossy()
+                .to_string()
+        });
+
+        let path_buf = PathBuf::from(&path);
+        let canonical = path_buf.canonicalize().map_err(|e| e.to_string())?;
+        let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
+
+        let mut entries = Vec::new();
+        let read_dir = std::fs::read_dir(&canonical).map_err(|e| e.to_string())?;
+
+        for entry in read_dir {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let metadata = entry.metadata().map_err(|e| e.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            if name.starts_with('.') {
+                continue;
+            }
+
+            entries.push(FileEntry {
+                name,
+                path: entry.path().to_string_lossy().to_string(),
+                is_dir: metadata.is_dir(),
+            });
+        }
+
+        entries.sort_by(|a, b| {
+            match (a.is_dir, b.is_dir) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            }
+        });
+
+        Ok(DirectoryListing {
+            current_path: canonical.to_string_lossy().to_string(),
+            parent_path,
+            entries,
+        })
+    }
+}
+
+#[cfg(any(feature = "web", feature = "server"))]
+pub use server_fns::*;
+
 #[cfg(any(feature = "server", feature = "web"))]
 mod fullstack_impl {
     use super::*;
     use dioxus::prelude::*;
 
-    #[server(ListDirectory)]
+    #[server]
     pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, ServerFnError> {
-        shared_impl::list_directory_impl(path).map_err(ServerFnError::new)
+        crate::server_fns::list_directory_impl(path).map_err(ServerFnError::new)
     }
 
-    #[server(StartPythiaScry)]
+    #[server]
     pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, ServerFnError> {
         shared_impl::start_pythia_scry_impl(config, super::spawn_blocking_task)
             .await
             .map_err(ServerFnError::new)
     }
 
-    #[server(GetJobStatus)]
+    #[server]
     pub async fn get_job_status(job_id: String) -> Result<JobStatus, ServerFnError> {
         shared_impl::get_job_status_impl(job_id).await.map_err(ServerFnError::new)
     }
@@ -208,10 +220,10 @@ pub use fullstack_impl::*;
 // ============================================================================
 // Desktop Implementation - runs locally without server functions
 // ============================================================================
-#[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
-    shared_impl::list_directory_impl(path)
-}
+// #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
+// pub async fn list_directory(path: Option<String>) -> Result<DirectoryListing, String> {
+//     shared_impl::list_directory_impl(path)
+// }
 
 #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
 pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {

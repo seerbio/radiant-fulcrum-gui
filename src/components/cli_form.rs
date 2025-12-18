@@ -1,11 +1,12 @@
 use dioxus::prelude::*;
 use crate::types::{SearchMode, RunConfig};
-use crate::server_fns::{start_pythia_scry, get_job_status};
 use crate::storage;
 use std::path::Path;
 
+use crate::server_fns::{start_pythia_scry, get_job_status};
+
 #[cfg(not(feature = "desktop"))]
-use crate::components::{FileBrowser, FileBrowserMode};
+use super::file_browser::{FileBrowser, FileBrowserMode};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
 

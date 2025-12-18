@@ -9,7 +9,7 @@ mod server_fns;
 mod types;
 mod storage;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "web"))]
 mod runner;
 
 #[cfg(feature = "desktop")]
@@ -21,6 +21,7 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    #[allow(unused_mut)]
     let mut builder = LaunchBuilder::new();
 
     #[cfg(feature = "desktop")]
