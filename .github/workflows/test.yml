@@ -1,0 +1,62 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-24.04
+            target: x86_64
+#          - runner: ubuntu-24.04
+#            target: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+      - name: Run Rust unit tests
+        if: ${{ startsWith(matrix.platform.target, 'x86_64') }}
+        run:
+          cargo test
+
+  macos:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: macos-15-intel
+            target: x86_64
+          - runner: macos-15
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Rust unit tests
+        run:
+          cargo test
+
+  windows:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: windows-latest
+            target: x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+      - name: Run Rust unit tests
+        if: ${{ startsWith(matrix.platform.target, 'x64') }}
+        run:
+          cargo test
