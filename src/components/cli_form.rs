@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use crate::types::{SearchMode, RunConfig};
 use crate::server_fns::{start_pythia_scry, get_job_status};
 use crate::storage;
+use std::path::Path;
 
 #[cfg(not(feature = "desktop"))]
 use crate::components::{FileBrowser, FileBrowserMode};
@@ -21,6 +22,13 @@ async fn sleep_ms(ms: u64) {
 
 pub fn update_last_dir(path: &str) {
     *LAST_DIRECTORY.write() = Some(path.to_string());
+}
+
+fn get_filename(path: &str) -> &str {
+    Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
 }
 
 #[cfg(feature = "desktop")]
@@ -384,7 +392,7 @@ pub fn CliForm() -> Element {
                         } else {
                             for (idx, file) in mzml_files.read().iter().enumerate() {
                                 div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
-                                    span { class: "flex-1 truncate", title: "{file}", "{file}" }
+                                    span { class: "flex-1 truncate", title: "{file}", "{get_filename(file)}" }
                                     button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
                                         r#type: "button",
                                         onclick: move |_| {
@@ -407,8 +415,12 @@ pub fn CliForm() -> Element {
                     div { class: "flex gap-2",
                         div { class: "flex-1 relative group",
                             input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text", placeholder: "Select library file...", value: "{library}",
-                                oninput: move |e| library.set(e.value().clone()), required: true }
+                                r#type: "text",
+                                placeholder: "Select library file...",
+                                value: "{get_filename(&library.read())}",
+                                title: "{library}",
+                                oninput: move |e| library.set(e.value().clone()),
+                                required: true }
                             if !library.read().is_empty() {
                                 button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
                                     r#type: "button", onclick: clear_library, title: "Clear", "×" }
@@ -424,8 +436,12 @@ pub fn CliForm() -> Element {
                     div { class: "flex gap-2",
                         div { class: "flex-1 relative group",
                             input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text", placeholder: "Select FASTA file...", value: "{fasta}",
-                                oninput: move |e| fasta.set(e.value().clone()), required: true }
+                                r#type: "text",
+                                placeholder: "Select FASTA file...",
+                                value: "{get_filename(&fasta.read())}",
+                                title: "{fasta}",
+                                oninput: move |e| fasta.set(e.value().clone()),
+                                required: true }
                             if !fasta.read().is_empty() {
                                 button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
                                     r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
@@ -440,7 +456,10 @@ pub fn CliForm() -> Element {
                     label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
                     div { class: "flex gap-2",
                         input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text", placeholder: "Select output directory...", value: "{results_dir}",
+                            r#type: "text",
+                            placeholder: "Select output directory...",
+                            value: "{get_filename(&results_dir.read())}",
+                            title: "{results_dir}",
                             oninput: move |e| results_dir.set(e.value().clone()) }
                         button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
                             r#type: "button", onclick: pick_results_dir, "Browse" }
@@ -470,8 +489,10 @@ pub fn CliForm() -> Element {
                                 label { class: "text-sm font-medium dark:text-gray-200", "Pythia Config (optional)" }
                                 div { class: "flex gap-2",
                                     div { class: "flex-1 relative group",
-                                        input { class: "w-full p-2 pr-8 border rounded dark:bg_gray-900 dark:text-gray-100",
-                                            r#type: "text", placeholder: "Select .pythiaConfig file...", value: "{config}",
+                                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                            r#type: "text", placeholder: "Select .pythiaConfig file...",
+                                            value: "{get_filename(&config.read())}",
+                                            title: "{config}",
                                             oninput: move |e| config.set(e.value().clone()) }
                                         if !config.read().is_empty() {
                                             button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
