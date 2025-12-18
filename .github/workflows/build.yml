@@ -67,18 +67,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build with Dioxus
         run:
-          dx bundle --desktop --release --package-types macos
+          dx bundle --desktop --release --package-types dmg
       - name: Upload Release Artifacts
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: target/dx/pythia-scry-gui/bundle/macos/bundle/macos/*.app
+          files: target/dx/pythia-scry-gui/bundle/macos/bundle/dmg/*.dmg
       - name: Upload Build Artifacts
         if: ${{ github.event_name != 'release' }}
         uses: actions/upload-artifact@v4
         with:
-          name: macos-app-${{ matrix.platform.target }}
-          path: target/dx/pythia-scry-gui/bundle/macos/bundle/macos/*.app
+          name: macos-dmg-${{ matrix.platform.target }}
+          path: target/dx/pythia-scry-gui/bundle/macos/bundle/dmg/*.dmg
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
