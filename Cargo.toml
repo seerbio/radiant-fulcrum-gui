@@ -1,5 +1,5 @@
 [package]
-name = "pythia-scry-gui"
+name = "radiant-fulcrum-gui"
 version = "0.1.0"
 authors = ["Seth Just <sjust@seer.bio>"]
 edition = "2021"

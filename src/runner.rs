@@ -11,7 +11,7 @@ use crate::types::{RunConfig, SearchMode};
 mod config_img {
     pub use crate::types::RunConfig;
 
-    const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/pythia-scry:latest";
+    const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/radiant-fulcrum:latest";
 
     impl RunConfig {
         pub fn get_img(&self) -> String {
@@ -91,12 +91,12 @@ impl VolumeMapper {
     }
 }
 
-pub fn run_pythia_scry<F>(config: RunConfig, mut on_output: F) -> io::Result<i32>
+pub fn run_radiant_fulcrum<F>(config: RunConfig, mut on_output: F) -> io::Result<i32>
 where
     F: FnMut(&str),
 {
     let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_filename = format!("pythia-scry-{}.log", timestamp);
+    let log_filename = format!("radiant-fulcrum-{}.log", timestamp);
 
     // If no results directory is configured, the CLI will create one in the
     // current working dir; we can just write our log to "." to keep things simple.
@@ -131,7 +131,7 @@ where
         }
     }
 
-    // Check that the image can be run, and get the Pythia version
+    // Check that the image can be run, and get the Radiant version
     let mut version_check = Command::new("docker");
     version_check.args(vec![
             "run".to_string(),
@@ -139,28 +139,28 @@ where
             img.to_owned(),
             // Note: the docker image currently doesn't encode a useful version number into the package metadata.
             // If this changes in the future we can reenable this command and the output code below.
-            // r"apt-cache policy pythiadia | grep -Po '(?<=Installed: )((?:\d+\.)*\d+)'".to_string(),
-            "which".to_string(), "pythia_scry".to_string(),
+            // r"apt-cache policy radiantdia | grep -Po '(?<=Installed: )((?:\d+\.)*\d+)'".to_string(),
+            "which".to_string(), "radiant_fulcrum".to_string(),
         ]);
 
-    // Note: re-enable this once we're able to get a useful version number for Pythia.
+    // Note: re-enable this once we're able to get a useful version number for Radiant.
     // let mut ver: Option<String>  = None;
     // match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut version_check, &mut None) {
 
     match run_command(&mut |_| {}, &mut version_check, &mut None) {
         Ok(0) =>  {
-            // Note: re-enable this once we're able to get a useful version number for Pythia.
-            // let msg = format!("Found Pythia version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
+            // Note: re-enable this once we're able to get a useful version number for Radiant.
+            // let msg = format!("Found Radiant version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
             // on_output(msg.as_str());
             // if let Some(ref mut file) = log_file {
             //     let _ = writeln!(file, "{}", msg);
             // }
         }
         Ok(i) => {
-            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Pythia Docker image! Exit code {}", i)));
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Radiant Docker image! Exit code {}", i)));
         }
         Err(e) => {
-            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Pythia Docker image! {}", e)));
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Radiant Docker image! {}", e)));
         }
     }
 
@@ -198,7 +198,7 @@ where
 
     // Build command arguments with remapped paths
     let mut args = vec![
-        "pythia_scry".to_string(),
+        "radiant_fulcrum".to_string(),
         "-v".to_string(),
         "--library".to_string(), library_container,
         "--fasta".to_string(), fasta_container,
@@ -245,7 +245,7 @@ where
 {
     on_output(format!("Checking for updates of Docker image tag {}", img).as_str());
 
-    // Check that the image can be run, and get the Pythia version
+    // Check that the image can be run, and get the Radiant version
     let mut update_check = Command::new("docker");
     update_check.args(vec![
         "pull".to_string(),

@@ -30,14 +30,14 @@ mod shared_impl {
     pub(super) static JOBS: Lazy<Mutex<HashMap<String, JobState>>> =
         Lazy::new(|| Mutex::new(HashMap::new()));
 
-    pub async fn start_pythia_scry_impl<F>(
+    pub async fn start_radiant_fulcrum_impl<F>(
         config: RunConfig,
         spawn_fn: F,
     ) -> Result<RunResult, String>
     where
         F: FnOnce(Box<dyn FnOnce() + Send>) + Send + 'static,
     {
-        use crate::runner::run_pythia_scry;
+        use crate::runner::run_radiant_fulcrum;
 
         let job_id = uuid::Uuid::new_v4().to_string();
 
@@ -59,7 +59,7 @@ mod shared_impl {
         let running_clone = running.clone();
 
         spawn_fn(Box::new(move || {
-            let result = run_pythia_scry(config, |line| {
+            let result = run_radiant_fulcrum(config, |line| {
                 let output = output_clone.clone();
                 let line = line.to_string();
                 futures_lite::future::block_on(async {
@@ -202,8 +202,8 @@ mod fullstack_impl {
     }
 
     #[server]
-    pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, ServerFnError> {
-        shared_impl::start_pythia_scry_impl(config, super::spawn_blocking_task)
+    pub async fn start_radiant_fulcrum(config: RunConfig) -> Result<RunResult, ServerFnError> {
+        shared_impl::start_radiant_fulcrum_impl(config, super::spawn_blocking_task)
             .await
             .map_err(ServerFnError::new)
     }
@@ -226,8 +226,8 @@ pub use fullstack_impl::*;
 // }
 
 #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]
-pub async fn start_pythia_scry(config: RunConfig) -> Result<RunResult, String> {
-    shared_impl::start_pythia_scry_impl(config, spawn_blocking_task).await
+pub async fn start_radiant_fulcrum(config: RunConfig) -> Result<RunResult, String> {
+    shared_impl::start_radiant_fulcrum_impl(config, spawn_blocking_task).await
 }
 
 #[cfg(all(feature = "desktop", not(feature = "server"), not(feature = "web")))]

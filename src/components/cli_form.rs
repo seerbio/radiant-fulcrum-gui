@@ -3,7 +3,7 @@ use crate::types::{SearchMode, RunConfig};
 use crate::storage;
 use std::path::Path;
 
-use crate::server_fns::{start_pythia_scry, get_job_status};
+use crate::server_fns::{start_radiant_fulcrum, get_job_status};
 
 #[cfg(not(feature = "desktop"))]
 use super::file_browser::{FileBrowser, FileBrowserMode};
@@ -181,7 +181,7 @@ pub fn CliForm() -> Element {
                 BrowserTarget::Config => {
                     let dialog = apply_last_dir(
                         rfd::AsyncFileDialog::new()
-                            .add_filter("Pythia Config", &["pythiaConfig"])
+                            .add_filter("Radiant Config", &["radiantConfig", "toml", "pythiaConfig"])
                     );
                     if let Some(path) = dialog.pick_file().await {
                         let path_str = path.path().display().to_string();
@@ -309,7 +309,7 @@ pub fn CliForm() -> Element {
         };
 
         spawn(async move {
-            match start_pythia_scry(run_config).await {
+            match start_radiant_fulcrum(run_config).await {
                 Ok(result) => {
                     job_id.set(Some(result.job_id));
                 }
@@ -332,7 +332,7 @@ pub fn CliForm() -> Element {
                 extensions: vec!["fasta".into(), "fas".into()],
             }),
             Some(BrowserTarget::Config) => Some(FileBrowserMode::File {
-                extensions: vec!["pythiaConfig".into()],
+                extensions: vec!["radiantConfig".into(), "toml".into(), "pythiaConfig".into()],
             }),
             Some(BrowserTarget::ResultsDir) => Some(FileBrowserMode::Directory),
             Some(BrowserTarget::MzmlFiles) => Some(FileBrowserMode::MultiFile {
@@ -365,7 +365,7 @@ pub fn CliForm() -> Element {
             // Left column - Parameters (1/3 width)
             form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
                 onsubmit: on_submit,
-                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Pythia Scry Workflow" }
+                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Radiant+Fulcrum Workflow" }
 
                 div { class: "flex flex-col gap-1",
                     label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
@@ -487,11 +487,11 @@ pub fn CliForm() -> Element {
                             }
 
                             div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Pythia Config (optional)" }
+                                label { class: "text-sm font-medium dark:text-gray-200", "Radiant Config (optional)" }
                                 div { class: "flex gap-2",
                                     div { class: "flex-1 relative group",
                                         input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                            r#type: "text", placeholder: "Select .pythiaConfig file...",
+                                            r#type: "text", placeholder: "Select .radiantConfig file...",
                                             value: "{get_filename(&config.read())}",
                                             title: "{config}",
                                             oninput: move |e| config.set(e.value().clone()) }
