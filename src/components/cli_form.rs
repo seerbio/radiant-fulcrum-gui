@@ -58,6 +58,30 @@ enum BrowserTarget {
     MzmlFiles,
 }
 
+fn cli_form_layout(file_browser_element: Element, params_panel: Element, output_panel: Element) -> Element {
+    rsx! {
+        // File browser modal (web/server only)
+        {file_browser_element}
+
+        div { class: "flex gap-6 p-6 h-full overflow-hidden",
+            {params_panel}
+            {output_panel}
+        }
+    }
+}
+
+fn output_panel(output: String) -> Element {
+    rsx! {
+        // Right column - Log/Console Output (2/3 width)
+        div { class: "w-2/3 flex flex-col min-h-0",
+            h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
+            div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0",
+                "{output}"
+            }
+        }
+    }
+}
+
 #[component]
 pub fn CliForm() -> Element {
     let mut library = use_signal(String::new);
@@ -357,184 +381,175 @@ pub fn CliForm() -> Element {
     #[cfg(feature = "desktop")]
     let file_browser_element = rsx! {};
 
-    rsx! {
-        // File browser modal (web/server only)
-        {file_browser_element}
+    let params_panel = rsx! {
+        // Left column - Parameters (1/3 width)
+        form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
+            onsubmit: on_submit,
+            h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Radiant+Fulcrum Workflow" }
 
-        div { class: "flex gap-6 p-6 h-full overflow-hidden",
-            // Left column - Parameters (1/3 width)
-            form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
-                onsubmit: on_submit,
-                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Radiant+Fulcrum Workflow" }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
-                    div { class: "flex gap-4 dark:text-gray-200",
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::LibraryFree,
-                                onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
-                            "Library-free"
-                        }
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::Mbr,
-                                onchange: move |_| search_mode.set(SearchMode::Mbr) }
-                            "Match Between Runs (MBR)"
-                        }
+            div { class: "flex flex-col gap-1",
+                label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
+                div { class: "flex gap-4 dark:text-gray-200",
+                    label { class: "flex items-center gap-2",
+                        input { r#type: "radio", name: "search_mode",
+                            checked: *search_mode.read() == SearchMode::LibraryFree,
+                            onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
+                        "Library-free"
+                    }
+                    label { class: "flex items-center gap-2",
+                        input { r#type: "radio", name: "search_mode",
+                            checked: *search_mode.read() == SearchMode::Mbr,
+                            onchange: move |_| search_mode.set(SearchMode::Mbr) }
+                        "Match Between Runs (MBR)"
                     }
                 }
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
-                    div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
-                        if mzml_files.read().is_empty() {
-                            "No files selected"
-                        } else {
-                            for (idx, file) in mzml_files.read().iter().enumerate() {
-                                div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
-                                    span { class: "flex-1 truncate", title: "{file}", "{get_filename(file)}" }
-                                    button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
-                                        r#type: "button",
-                                        onclick: move |_| {
-                                            let mut files = mzml_files.read().clone();
-                                            files.remove(idx);
-                                            mzml_files.set(files);
-                                        },
-                                        "×"
-                                    }
+            div { class: "flex flex-col gap-1",
+                label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
+                div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
+                    if mzml_files.read().is_empty() {
+                        "No files selected"
+                    } else {
+                        for (idx, file) in mzml_files.read().iter().enumerate() {
+                            div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
+                                span { class: "flex-1 truncate", title: "{file}", "{get_filename(file)}" }
+                                button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
+                                    r#type: "button",
+                                    onclick: move |_| {
+                                        let mut files = mzml_files.read().clone();
+                                        files.remove(idx);
+                                        mzml_files.set(files);
+                                    },
+                                    "×"
                                 }
                             }
                         }
                     }
-                    button { class: "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_mzml, "Browse" }
                 }
+                button { class: "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                    r#type: "button", onclick: pick_mzml, "Browse" }
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Library" }
-                    div { class: "flex gap-2",
-                        div { class: "flex-1 relative group",
-                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text",
-                                placeholder: "Select library file...",
-                                value: "{get_filename(&library.read())}",
-                                title: "{library}",
-                                oninput: move |e| library.set(e.value().clone()),
-                                required: true }
-                            if !library.read().is_empty() {
-                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                    r#type: "button", onclick: clear_library, title: "Clear", "×" }
-                            }
-                        }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_library, "Browse" }
-                    }
-                }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "FASTA" }
-                    div { class: "flex gap-2",
-                        div { class: "flex-1 relative group",
-                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text",
-                                placeholder: "Select FASTA file...",
-                                value: "{get_filename(&fasta.read())}",
-                                title: "{fasta}",
-                                oninput: move |e| fasta.set(e.value().clone()),
-                                required: true }
-                            if !fasta.read().is_empty() {
-                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                    r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
-                            }
-                        }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_fasta, "Browse" }
-                    }
-                }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
-                    div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+            div { class: "flex flex-col gap-1",
+                label { class: "text-sm font-medium dark:text-gray-200", "Library" }
+                div { class: "flex gap-2",
+                    div { class: "flex-1 relative group",
+                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
                             r#type: "text",
-                            placeholder: "Select output directory...",
-                            value: "{get_filename(&results_dir.read())}",
-                            title: "{results_dir}",
-                            oninput: move |e| results_dir.set(e.value().clone()) }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_results_dir, "Browse" }
+                            placeholder: "Select library file...",
+                            value: "{get_filename(&library.read())}",
+                            title: "{library}",
+                            oninput: move |e| library.set(e.value().clone()),
+                            required: true }
+                        if !library.read().is_empty() {
+                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                r#type: "button", onclick: clear_library, title: "Clear", "×" }
+                        }
                     }
+                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                        r#type: "button", onclick: pick_library, "Browse" }
+                }
+            }
+
+            div { class: "flex flex-col gap-1",
+                label { class: "text-sm font-medium dark:text-gray-200", "FASTA" }
+                div { class: "flex gap-2",
+                    div { class: "flex-1 relative group",
+                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
+                            r#type: "text",
+                            placeholder: "Select FASTA file...",
+                            value: "{get_filename(&fasta.read())}",
+                            title: "{fasta}",
+                            oninput: move |e| fasta.set(e.value().clone()),
+                            required: true }
+                        if !fasta.read().is_empty() {
+                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
+                        }
+                    }
+                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                        r#type: "button", onclick: pick_fasta, "Browse" }
+                }
+            }
+
+            div { class: "flex flex-col gap-1",
+                label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
+                div { class: "flex gap-2",
+                    input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                        r#type: "text",
+                        placeholder: "Select output directory...",
+                        value: "{get_filename(&results_dir.read())}",
+                        title: "{results_dir}",
+                        oninput: move |e| results_dir.set(e.value().clone()) }
+                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                        r#type: "button", onclick: pick_results_dir, "Browse" }
+                }
+            }
+
+            div { class: "flex flex-col gap-2 mt-2",
+                button { class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
+                    r#type: "button",
+                    onclick: move |_| {
+                        let current = *show_advanced.read();
+                        show_advanced.set(!current);
+                    },
+                    if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
                 }
 
-                div { class: "flex flex-col gap-2 mt-2",
-                    button { class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
-                        r#type: "button",
-                        onclick: move |_| {
-                            let current = *show_advanced.read();
-                            show_advanced.set(!current);
-                        },
-                        if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
-                    }
+                if *show_advanced.read() {
+                    div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
+                        div { class: "flex flex-col gap-1",
+                            label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
+                            input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
+                                oninput: move |e| fdr_thresh.set(e.value().clone()) }
+                        }
 
-                    if *show_advanced.read() {
-                        div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                    r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
-                                    oninput: move |e| fdr_thresh.set(e.value().clone()) }
-                            }
-
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Radiant Config (optional)" }
-                                div { class: "flex gap-2",
-                                    div { class: "flex-1 relative group",
-                                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                            r#type: "text", placeholder: "Select .radiantConfig file...",
-                                            value: "{get_filename(&config.read())}",
-                                            title: "{config}",
-                                            oninput: move |e| config.set(e.value().clone()) }
-                                        if !config.read().is_empty() {
-                                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                                r#type: "button", onclick: clear_config, title: "Clear", "×" }
-                                        }
+                        div { class: "flex flex-col gap-1",
+                            label { class: "text-sm font-medium dark:text-gray-200", "Radiant Config (optional)" }
+                            div { class: "flex gap-2",
+                                div { class: "flex-1 relative group",
+                                    input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                        r#type: "text", placeholder: "Select .radiantConfig file...",
+                                        value: "{get_filename(&config.read())}",
+                                        title: "{config}",
+                                        oninput: move |e| config.set(e.value().clone()) }
+                                    if !config.read().is_empty() {
+                                        button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
+                                            r#type: "button", onclick: clear_config, title: "Clear", "×" }
                                     }
-                                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                                        r#type: "button", onclick: pick_config, "Browse" }
                                 }
+                                button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                                    r#type: "button", onclick: pick_config, "Browse" }
                             }
+                        }
 
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                    r#type: "number", min: "0", value: "{threads}",
-                                    oninput: move |e| threads.set(e.value().clone()) }
-                            }
+                        div { class: "flex flex-col gap-1",
+                            label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
+                            input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                r#type: "number", min: "0", value: "{threads}",
+                                oninput: move |e| threads.set(e.value().clone()) }
+                        }
 
-                            div { class: "flex flex-col gap-1",
-                                label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
-                                    input { r#type: "checkbox",
-                                        checked: *check_image_updates.read(),
-                                        onchange: move |e| check_image_updates.set(e.checked()) }
-                                    "Check for Docker image updates"
-                                }
+                        div { class: "flex flex-col gap-1",
+                            label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
+                                input { r#type: "checkbox",
+                                    checked: *check_image_updates.read(),
+                                    onchange: move |e| check_image_updates.set(e.checked()) }
+                                "Check for Docker image updates"
                             }
                         }
                     }
                 }
-
-                button { class: "mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded disabled:opacity-50",
-                    r#type: "submit", disabled: *running.read(), "Run" }
             }
 
-            // Right column - Log/Console Output (2/3 width)
-            div { class: "w-2/3 flex flex-col min-h-0",
-                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
-                div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0",
-                    "{output}"
-                }
-            }
+            button { class: "mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded disabled:opacity-50",
+                r#type: "submit", disabled: *running.read(), "Run" }
         }
-    }
+    };
+
+    let output_text = output.read().clone();
+    let output_panel = output_panel(output_text);
+    cli_form_layout(file_browser_element, params_panel, output_panel)
 }
