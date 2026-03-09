@@ -16,6 +16,7 @@
     --color-green-700: oklch(52.7% 0.154 150.069);
     --color-blue-100: oklch(93.2% 0.032 255.585);
     --color-blue-400: oklch(70.7% 0.165 254.624);
+    --color-blue-500: oklch(62.3% 0.214 259.815);
     --color-blue-600: oklch(54.6% 0.245 262.881);
     --color-blue-700: oklch(48.8% 0.243 264.376);
     --color-blue-900: oklch(37.9% 0.146 265.522);
@@ -332,6 +333,9 @@
     --tw-translate-y: calc(calc(1/2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .cursor-not-allowed {
+    cursor: not-allowed;
+  }
   .cursor-pointer {
     cursor: pointer;
   }
@@ -411,6 +415,9 @@
   .bg-blue-100 {
     background-color: var(--color-blue-100);
   }
+  .bg-blue-500 {
+    background-color: var(--color-blue-500);
+  }
   .bg-blue-600 {
     background-color: var(--color-blue-600);
   }
@@ -419,6 +426,9 @@
   }
   .bg-gray-200 {
     background-color: var(--color-gray-200);
+  }
+  .bg-gray-500 {
+    background-color: var(--color-gray-500);
   }
   .bg-green-600 {
     background-color: var(--color-green-600);
@@ -517,6 +527,9 @@
   .opacity-0 {
     opacity: 0%;
   }
+  .opacity-70 {
+    opacity: 70%;
+  }
   .shadow {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -545,6 +558,13 @@
     &:is(:where(.group):hover *) {
       @media (hover: hover) {
         opacity: 100%;
+      }
+    }
+  }
+  .hover\:bg-blue-600 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-blue-600);
       }
     }
   }
