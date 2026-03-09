@@ -192,6 +192,22 @@ impl CliFormState {
             check_image_updates: *self.check_image_updates.read(),
         }
     }
+
+    fn missing_required_fields(self) -> Vec<&'static str> {
+        let mut missing = Vec::new();
+
+        if self.library.read().trim().is_empty() {
+            missing.push("Library");
+        }
+        if self.fasta.read().trim().is_empty() {
+            missing.push("FASTA");
+        }
+        if self.mzml_files.read().is_empty() {
+            missing.push("mzML Files");
+        }
+
+        missing
+    }
 }
 
 fn use_cli_form_state() -> CliFormState {
@@ -401,6 +417,16 @@ pub fn CliForm() -> Element {
     let on_submit = move |evt: Event<FormData>| {
         evt.prevent_default();
         if *running.read() { return; }
+
+        let missing = state.missing_required_fields();
+        if !missing.is_empty() {
+            output.set(format!(
+                "Cannot start run. Missing required field(s):\n- {}",
+                missing.join("\n- ")
+            ));
+            return;
+        }
+
         running.set(true);
         output.set("Starting job...".to_string());
 
@@ -454,6 +480,7 @@ pub fn CliForm() -> Element {
 
     #[cfg(feature = "desktop")]
     let file_browser_element = rsx! {};
+    let has_missing_required = !state.missing_required_fields().is_empty();
 
     let params_panel = rsx! {
         // Left column - Parameters (1/3 width)
@@ -594,8 +621,33 @@ pub fn CliForm() -> Element {
                 }
             }
 
-            button { class: "mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded disabled:opacity-50",
-                r#type: "submit", disabled: *running.read(), "Run" }
+            button {
+                class: format!(
+                    "mt-2 py-2 px-4 text-white font-semibold rounded {}",
+                    if *running.read() {
+                        "bg-gray-500 opacity-70 cursor-not-allowed"
+                    } else if has_missing_required {
+                        "bg-blue-500 hover:bg-blue-600 cursor-pointer"
+                    } else {
+                        "bg-blue-600 hover:bg-blue-700"
+                    }
+                ),
+                r#type: "submit",
+                disabled: *running.read(),
+                aria_disabled: if *running.read() { "true" } else { "false" },
+                title: if *running.read() {
+                    "Workflow is currently running"
+                } else if has_missing_required {
+                    "Click to see what is missing"
+                } else {
+                    "Run workflow"
+                },
+                if *running.read() {
+                    "Running..."
+                } else {
+                    "Run"
+                }
+            }
         }
     };
 
