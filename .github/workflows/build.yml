@@ -40,13 +40,13 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: target/dx/pythia-scry-gui/bundle/linux/bundle/appimage/*.AppImage
+          files: target/dx/radiant-fulcrum-gui/bundle/linux/bundle/appimage/*.AppImage
       - name: Upload Build Artifacts
         if: ${{ github.event_name != 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage-${{ matrix.platform.target }}
-          path: target/dx/pythia-scry-gui/bundle/linux/bundle/appimage/*.AppImage
+          path: target/dx/radiant-fulcrum-gui/bundle/linux/bundle/appimage/*.AppImage
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -72,13 +72,13 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: target/dx/pythia-scry-gui/bundle/macos/bundle/dmg/*.dmg
+          files: target/dx/radiant-fulcrum-gui/bundle/macos/bundle/dmg/*.dmg
       - name: Upload Build Artifacts
         if: ${{ github.event_name != 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg-${{ matrix.platform.target }}
-          path: target/dx/pythia-scry-gui/bundle/macos/bundle/dmg/*.dmg
+          path: target/dx/radiant-fulcrum-gui/bundle/macos/bundle/dmg/*.dmg
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -106,10 +106,10 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: target/dx/pythia-scry-gui/bundle/windows/bundle/nsis/*.exe
+          files: target/dx/radiant-fulcrum-gui/bundle/windows/bundle/nsis/*.exe
       - name: Upload Build Artifacts
         if: ${{ github.event_name != 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer-${{ matrix.platform.target }}
-          path: target/dx/pythia-scry-gui/bundle/windows/bundle/nsis/*.exe
+          path: target/dx/radiant-fulcrum-gui/bundle/windows/bundle/nsis/*.exe

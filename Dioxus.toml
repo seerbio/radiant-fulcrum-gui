@@ -1,8 +1,8 @@
 [application]
-name = "pythia-scry-gui"
+name = "radiant-fulcrum-gui"
 
 [web.app]
-title = "pythia-scry-gui"
+title = "radiant-fulcrum-gui"
 
 [web.resource]
 style = []
@@ -17,6 +17,6 @@ reload_html = true
 watch_path = ["src", "assets"]
 
 [bundle]
-identifier = "bio.seer.pythia-scry-gui"
+identifier = "bio.seer.radiant-fulcrum-gui"
 publisher = "Seer Inc."
-icon = ["assets/scry-logo.png"]
+icon = ["assets/radiant-logo.png"]

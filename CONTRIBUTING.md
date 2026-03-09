@@ -1,4 +1,4 @@
-# Contributing to `pythia-scry-gui`
+# Contributing to `radiant-fulcrum-gui`
 
 This tool is written in Rust, using the Dioxus cross-platform UI library.
 While it is meant primarily for desktop use, please take care to ensure all

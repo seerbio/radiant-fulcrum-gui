@@ -24,7 +24,7 @@ mod desktop_impl {
     use std::path::PathBuf;
 
     fn config_path() -> Option<PathBuf> {
-        dirs::config_dir().map(|p| p.join("pythia-scry-gui").join("last_files.toml"))
+        dirs::config_dir().map(|p| p.join("radiant-fulcrum-gui").join("last_files.toml"))
     }
 
     pub fn load() -> LastFiles {
@@ -50,7 +50,7 @@ mod desktop_impl {
 mod web_impl {
     use super::*;
 
-    const STORAGE_KEY: &str = "pythia_scry_last_files";
+    const STORAGE_KEY: &str = "radiant_fulcrum_last_files";
 
     fn local_storage() -> Option<web_sys::Storage> {
         web_sys::window()?.local_storage().ok()?
