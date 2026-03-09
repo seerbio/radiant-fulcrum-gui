@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::server_fns::{start_radiant_fulcrum, get_job_status};
 
+use super::collapsible::{Collapsible, CollapsibleContent, CollapsibleTrigger};
 #[cfg(not(feature = "desktop"))]
 use super::file_browser::{FileBrowser, FileBrowserMode};
 use super::form_primitives::FilePathField;
@@ -574,47 +575,47 @@ pub fn CliForm() -> Element {
             }
 
             div { class: "flex flex-col gap-2 mt-2",
-                button { class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
-                    r#type: "button",
-                    onclick: move |_| {
-                        let current = *show_advanced.read();
-                        show_advanced.set(!current);
-                    },
-                    if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
-                }
+                Collapsible {
+                    open: Some(*show_advanced.read()),
+                    on_open_change: move |is_open| show_advanced.set(is_open),
+                    CollapsibleTrigger {
+                        class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
+                        if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
+                    }
+                    CollapsibleContent {
+                        class: "pt-1",
+                        div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
+                            div { class: "flex flex-col gap-1",
+                                label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
+                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                    r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
+                                    oninput: move |e| fdr_thresh.set(e.value().clone()) }
+                            }
 
-                if *show_advanced.read() {
-                    div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
-                        div { class: "flex flex-col gap-1",
-                            label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
-                            input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
-                                oninput: move |e| fdr_thresh.set(e.value().clone()) }
-                        }
+                            FilePathField {
+                                title: "Radiant Config (optional)".to_string(),
+                                placeholder: "Select .radiantConfig file...".to_string(),
+                                value: get_filename(&config.read()).to_string(),
+                                full_path: config.read().clone(),
+                                oninput: move |value| config.set(value),
+                                onbrowse: pick_config,
+                                onclear: clear_config,
+                            }
 
-                        FilePathField {
-                            title: "Radiant Config (optional)".to_string(),
-                            placeholder: "Select .radiantConfig file...".to_string(),
-                            value: get_filename(&config.read()).to_string(),
-                            full_path: config.read().clone(),
-                            oninput: move |value| config.set(value),
-                            onbrowse: pick_config,
-                            onclear: clear_config,
-                        }
+                            div { class: "flex flex-col gap-1",
+                                label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
+                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                                    r#type: "number", min: "0", value: "{threads}",
+                                    oninput: move |e| threads.set(e.value().clone()) }
+                            }
 
-                        div { class: "flex flex-col gap-1",
-                            label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
-                            input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "number", min: "0", value: "{threads}",
-                                oninput: move |e| threads.set(e.value().clone()) }
-                        }
-
-                        div { class: "flex flex-col gap-1",
-                            label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
-                                input { r#type: "checkbox",
-                                    checked: *check_image_updates.read(),
-                                    onchange: move |e| check_image_updates.set(e.checked()) }
-                                "Check for Docker image updates"
+                            div { class: "flex flex-col gap-1",
+                                label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
+                                    input { r#type: "checkbox",
+                                        checked: *check_image_updates.read(),
+                                        onchange: move |e| check_image_updates.set(e.checked()) }
+                                    "Check for Docker image updates"
+                                }
                             }
                         }
                     }
