@@ -82,24 +82,151 @@ fn output_panel(output: String) -> Element {
     }
 }
 
+#[derive(Clone, Copy)]
+struct CliFormState {
+    library: Signal<String>,
+    fasta: Signal<String>,
+    config: Signal<String>,
+    search_mode: Signal<SearchMode>,
+    fdr_thresh: Signal<String>,
+    threads: Signal<String>,
+    results_dir: Signal<String>,
+    mzml_files: Signal<Vec<String>>,
+    output: Signal<String>,
+    running: Signal<bool>,
+    job_id: Signal<Option<String>>,
+    show_advanced: Signal<bool>,
+    check_image_updates: Signal<bool>,
+    #[cfg(not(feature = "desktop"))]
+    show_browser: Signal<Option<BrowserTarget>>,
+}
+
+impl CliFormState {
+    fn save_last_files(self) {
+        let last_files = storage::LastFiles {
+            library: {
+                let lib = self.library.read().clone();
+                if lib.is_empty() { None } else { Some(lib) }
+            },
+            fasta: {
+                let fas = self.fasta.read().clone();
+                if fas.is_empty() { None } else { Some(fas) }
+            },
+            config: {
+                let cfg = self.config.read().clone();
+                if cfg.is_empty() { None } else { Some(cfg) }
+            },
+        };
+        storage::save(&last_files);
+    }
+
+    fn clear_library(mut self) {
+        self.library.set(String::new());
+        self.save_last_files();
+    }
+
+    fn clear_fasta(mut self) {
+        self.fasta.set(String::new());
+        self.save_last_files();
+    }
+
+    fn clear_config(mut self) {
+        self.config.set(String::new());
+        self.save_last_files();
+    }
+
+    fn add_mzml_files(mut self, new_paths: Vec<String>) {
+        let mut current_files = self.mzml_files.read().clone();
+        for path in new_paths {
+            if !current_files.contains(&path) {
+                current_files.push(path);
+            }
+        }
+        self.mzml_files.set(current_files);
+    }
+
+    fn handle_file_selection(mut self, target: BrowserTarget, paths: Vec<String>) {
+        match target {
+            BrowserTarget::Library => if let Some(path) = paths.first() {
+                self.library.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::Fasta => if let Some(path) = paths.first() {
+                self.fasta.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::Config => if let Some(path) = paths.first() {
+                self.config.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::ResultsDir => if let Some(path) = paths.first() {
+                self.results_dir.set(path.clone());
+            },
+            BrowserTarget::MzmlFiles => self.add_mzml_files(paths),
+        }
+    }
+
+    fn run_config(self) -> RunConfig {
+        RunConfig {
+            library: self.library.read().clone(),
+            fasta: self.fasta.read().clone(),
+            config: {
+                let c = self.config.read().clone();
+                if c.is_empty() { None } else { Some(c) }
+            },
+            search_mode: *self.search_mode.read(),
+            fdr_thresh: self.fdr_thresh.read().clone(),
+            threads: self.threads.read().clone(),
+            results_dir: {
+                let r = self.results_dir.read().clone();
+                if r.is_empty() { None } else { Some(r) }
+            },
+            mzml_files: self.mzml_files.read().clone(),
+            img: None,
+            check_image_updates: *self.check_image_updates.read(),
+        }
+    }
+}
+
+fn use_cli_form_state() -> CliFormState {
+    CliFormState {
+        library: use_signal(String::new),
+        fasta: use_signal(String::new),
+        config: use_signal(String::new),
+        search_mode: use_signal(|| SearchMode::LibraryFree),
+        fdr_thresh: use_signal(|| "0.01".to_string()),
+        threads: use_signal(|| "0".to_string()),
+        results_dir: use_signal(String::new),
+        mzml_files: use_signal(Vec::<String>::new),
+        output: use_signal(String::new),
+        running: use_signal(|| false),
+        job_id: use_signal(|| None::<String>),
+        show_advanced: use_signal(|| false),
+        check_image_updates: use_signal(|| false),
+        #[cfg(not(feature = "desktop"))]
+        show_browser: use_signal(|| None::<BrowserTarget>),
+    }
+}
+
 #[component]
 pub fn CliForm() -> Element {
-    let mut library = use_signal(String::new);
-    let mut fasta = use_signal(String::new);
-    let mut config = use_signal(String::new);
-    let mut search_mode = use_signal(|| SearchMode::LibraryFree);
-    let mut fdr_thresh = use_signal(|| "0.01".to_string());
-    let mut threads = use_signal(|| "0".to_string());
-    let mut results_dir = use_signal(String::new);
-    let mut mzml_files = use_signal(Vec::<String>::new);
-    let mut output = use_signal(String::new);
-    let mut running = use_signal(|| false);
-    let mut job_id = use_signal(|| None::<String>);
-    let mut show_advanced = use_signal(|| false);
-    let mut check_image_updates = use_signal(|| false);
+    let state = use_cli_form_state();
+    let mut library = state.library;
+    let mut fasta = state.fasta;
+    let mut config = state.config;
+    let mut search_mode = state.search_mode;
+    let mut fdr_thresh = state.fdr_thresh;
+    let mut threads = state.threads;
+    let mut results_dir = state.results_dir;
+    let mut mzml_files = state.mzml_files;
+    let mut output = state.output;
+    let mut running = state.running;
+    let mut job_id = state.job_id;
+    let mut show_advanced = state.show_advanced;
+    let mut check_image_updates = state.check_image_updates;
 
     #[cfg(not(feature = "desktop"))]
-    let mut show_browser = use_signal(|| None::<BrowserTarget>);
+    let mut show_browser = state.show_browser;
 
     use_effect(move || {
         let last_files = storage::load();
@@ -114,66 +241,12 @@ pub fn CliForm() -> Element {
         }
     });
 
-    let save_last_files = move || {
-        let last_files = storage::LastFiles {
-            library: {
-                let lib = library.read().clone();
-                if lib.is_empty() { None } else { Some(lib) }
-            },
-            fasta: {
-                let fas = fasta.read().clone();
-                if fas.is_empty() { None } else { Some(fas) }
-            },
-            config: {
-                let cfg = config.read().clone();
-                if cfg.is_empty() { None } else { Some(cfg) }
-            },
-        };
-        storage::save(&last_files);
-    };
+    let clear_library = move |_| state.clear_library();
+    let clear_fasta = move |_| state.clear_fasta();
+    let clear_config = move |_| state.clear_config();
 
-    let clear_library = move |_| {
-        library.set(String::new());
-        save_last_files();
-    };
-
-    let clear_fasta = move |_| {
-        fasta.set(String::new());
-        save_last_files();
-    };
-
-    let clear_config = move |_| {
-        config.set(String::new());
-        save_last_files();
-    };
-
-    let mut add_mzml_files = move |new_paths: Vec<String>| {
-        let mut current_files = mzml_files.read().clone();
-        for path in new_paths {
-            if !current_files.contains(&path) {
-                current_files.push(path);
-            }
-        }
-        mzml_files.set(current_files);
-    };
-
-    let mut handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
-        match target {
-            BrowserTarget::Library => if let Some(path) = paths.first() {
-                library.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::Fasta => if let Some(path) = paths.first() {
-                fasta.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::Config => if let Some(path) = paths.first() {
-                config.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
-            BrowserTarget::MzmlFiles => add_mzml_files(paths),
-        }
+    let handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
+        state.handle_file_selection(target, paths);
     };
 
     #[cfg(feature = "desktop")]
@@ -313,24 +386,7 @@ pub fn CliForm() -> Element {
         running.set(true);
         output.set("Starting job...".to_string());
 
-        let run_config = RunConfig {
-            library: library.read().clone(),
-            fasta: fasta.read().clone(),
-            config: {
-                let c = config.read().clone();
-                if c.is_empty() { None } else { Some(c) }
-            },
-            search_mode: *search_mode.read(),
-            fdr_thresh: fdr_thresh.read().clone(),
-            threads: threads.read().clone(),
-            results_dir: {
-                let r = results_dir.read().clone();
-                if r.is_empty() { None } else { Some(r) }
-            },
-            mzml_files: mzml_files.read().clone(),
-            img: None,
-            check_image_updates: *check_image_updates.read(),
-        };
+        let run_config = state.run_config();
 
         spawn(async move {
             match start_radiant_fulcrum(run_config).await {
