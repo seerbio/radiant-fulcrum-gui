@@ -22,6 +22,7 @@ use dioxus::desktop::{Config, WindowBuilder};
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 const THEME_TOKENS_CSS: Asset = asset!("/assets/theme-tokens.css");
+const DX_COMPONENTS_THEME_CSS: Asset = asset!("/assets/dx-components-theme.css");
 
 fn main() {
     #[allow(unused_mut)]
@@ -57,6 +58,7 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
         document::Link { rel: "stylesheet", href: THEME_TOKENS_CSS }
+        document::Link { rel: "stylesheet", href: DX_COMPONENTS_THEME_CSS }
 
         div { class: "h-screen max-h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden transition-colors duration-200",
             ThemeToggle {}
