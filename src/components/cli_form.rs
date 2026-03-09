@@ -10,6 +10,7 @@ use super::collapsible::{Collapsible, CollapsibleContent, CollapsibleTrigger};
 use super::file_browser::{FileBrowser, FileBrowserMode};
 use super::form_primitives::FilePathField;
 use super::radio_group::{RadioGroup, RadioItem};
+use super::switch::{Switch, SwitchThumb};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
 
@@ -611,9 +612,12 @@ pub fn CliForm() -> Element {
 
                             div { class: "flex flex-col gap-1",
                                 label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
-                                    input { r#type: "checkbox",
-                                        checked: *check_image_updates.read(),
-                                        onchange: move |e| check_image_updates.set(e.checked()) }
+                                    Switch {
+                                        checked: Some(*check_image_updates.read()),
+                                        on_checked_change: move |is_checked| check_image_updates.set(is_checked),
+                                        aria_label: "Check for Docker image updates",
+                                        SwitchThumb {}
+                                    }
                                     "Check for Docker image updates"
                                 }
                             }
