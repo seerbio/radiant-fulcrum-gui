@@ -18,6 +18,14 @@ const PANEL_TITLE_CLASS: &str = "text-xl font-bold mb-2 dark:text-gray-100";
 const FIELD_LABEL_CLASS: &str = "text-sm font-medium dark:text-gray-200";
 const FIELD_GROUP_CLASS: &str = "flex flex-col gap-1";
 const NUMERIC_INPUT_CLASS: &str = "p-2 border rounded dark:bg-gray-900 dark:text-gray-100";
+const MZML_LIST_CLASS: &str =
+    "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto";
+const MZML_ROW_CLASS: &str =
+    "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group";
+const MZML_REMOVE_BUTTON_CLASS: &str =
+    "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold";
+const MZML_BROWSE_BUTTON_CLASS: &str =
+    "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100";
 
 async fn sleep_ms(ms: u64) {
     #[cfg(target_arch = "wasm32")]
@@ -524,14 +532,14 @@ pub fn CliForm() -> Element {
 
             div { class: FIELD_GROUP_CLASS,
                 label { class: FIELD_LABEL_CLASS, "mzML Files" }
-                ScrollArea { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto".to_string(),
+                ScrollArea { class: MZML_LIST_CLASS.to_string(),
                     if mzml_files.read().is_empty() {
                         "No files selected"
                     } else {
                         for (idx, file) in mzml_files.read().iter().enumerate() {
-                            div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
+                            div { class: MZML_ROW_CLASS,
                                 span { class: "flex-1 truncate", title: "{file}", "{get_filename(file)}" }
-                                button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
+                                button { class: MZML_REMOVE_BUTTON_CLASS,
                                     r#type: "button",
                                     onclick: move |_| {
                                         let mut files = mzml_files.read().clone();
@@ -544,7 +552,7 @@ pub fn CliForm() -> Element {
                         }
                     }
                 }
-                button { class: "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
+                button { class: MZML_BROWSE_BUTTON_CLASS,
                     r#type: "button", onclick: pick_mzml, "Browse" }
             }
 

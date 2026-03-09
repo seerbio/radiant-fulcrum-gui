@@ -3,6 +3,26 @@ use crate::server_fns::{DirectoryListing, FileEntry, list_directory};
 use crate::components::cli_form::{LAST_DIRECTORY, update_last_dir};
 use crate::components::dialog::{DialogContent, DialogRoot};
 
+const BROWSER_DIALOG_CLASS: &str =
+    "w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl";
+const HEADER_CLASS: &str = "p-4 border-b dark:border-gray-700 flex justify-between items-center";
+const TITLE_CLASS: &str = "text-lg font-semibold dark:text-gray-100";
+const CLOSE_BUTTON_CLASS: &str = "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200";
+const PATH_BAR_CLASS: &str =
+    "px-4 py-2 bg-gray-100 dark:bg-gray-900 text-sm dark:text-gray-300 flex items-center gap-2";
+const UP_BUTTON_CLASS: &str = "px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600";
+const FILE_LIST_CLASS: &str = "flex-1 overflow-auto p-2";
+const LOADING_CLASS: &str = "flex items-center justify-center h-32 dark:text-gray-300";
+const ERROR_CLASS: &str = "text-red-500 p-4";
+const ENTRIES_CLASS: &str = "space-y-1";
+const FOOTER_CLASS: &str = "p-4 border-t dark:border-gray-700 flex justify-between items-center gap-2";
+const FOOTER_META_CLASS: &str = "text-sm dark:text-gray-400";
+const FOOTER_ACTIONS_CLASS: &str = "flex gap-2";
+const SELECT_CURRENT_BUTTON_CLASS: &str = "px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700";
+const CANCEL_BUTTON_CLASS: &str =
+    "px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-200";
+const SELECT_BUTTON_CLASS: &str = "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50";
+
 #[derive(Clone, PartialEq)]
 pub enum FileBrowserMode {
     File { extensions: Vec<String> },
@@ -110,10 +130,10 @@ pub fn FileBrowser(
                 }
             },
             DialogContent {
-                class: "w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl".to_string(),
+                class: BROWSER_DIALOG_CLASS.to_string(),
                 // Header
-                div { class: "p-4 border-b dark:border-gray-700 flex justify-between items-center",
-                    h3 { class: "text-lg font-semibold dark:text-gray-100",
+                div { class: HEADER_CLASS,
+                    h3 { class: TITLE_CLASS,
                         match &mode {
                             FileBrowserMode::File { .. } => "Select File",
                             FileBrowserMode::Directory => "Select Directory",
@@ -121,7 +141,7 @@ pub fn FileBrowser(
                         }
                     }
                     button {
-                        class: "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",
+                        class: CLOSE_BUTTON_CLASS,
                         onclick: move |_| on_cancel.call(()),
                         "✕"
                     }
@@ -129,10 +149,10 @@ pub fn FileBrowser(
 
                 // Current path
                 if let Some(ref dir) = *listing.read() {
-                    div { class: "px-4 py-2 bg-gray-100 dark:bg-gray-900 text-sm dark:text-gray-300 flex items-center gap-2",
+                    div { class: PATH_BAR_CLASS,
                         if let Some(ref parent) = dir.parent_path {
                             button {
-                                class: "px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600",
+                                class: UP_BUTTON_CLASS,
                                 onclick: {
                                     let parent = parent.clone();
                                     move |_| navigate_to(parent.clone())
@@ -145,17 +165,17 @@ pub fn FileBrowser(
                 }
 
                 // File list
-                div { class: "flex-1 overflow-auto p-2",
+                div { class: FILE_LIST_CLASS,
                     if *loading.read() {
-                        div { class: "flex items-center justify-center h-32 dark:text-gray-300",
+                        div { class: LOADING_CLASS,
                             "Loading..."
                         }
                     } else if let Some(ref err) = *error.read() {
-                        div { class: "text-red-500 p-4",
+                        div { class: ERROR_CLASS,
                             "Error: {err}"
                         }
                     } else if let Some(ref dir) = *listing.read() {
-                        div { class: "space-y-1",
+                        div { class: ENTRIES_CLASS,
                             for entry in dir.entries.iter().filter(|e| filter_entry(e)) {
                                 {
                                     let entry_path = entry.path.clone();
@@ -222,27 +242,27 @@ pub fn FileBrowser(
                 }
 
                 // Footer
-                div { class: "p-4 border-t dark:border-gray-700 flex justify-between items-center gap-2",
-                    div { class: "text-sm dark:text-gray-400",
+                div { class: FOOTER_CLASS,
+                    div { class: FOOTER_META_CLASS,
                         if !selected.read().is_empty() {
                             "{selected.read().len()} selected"
                         }
                     }
-                    div { class: "flex gap-2",
+                    div { class: FOOTER_ACTIONS_CLASS,
                         if matches!(mode_for_current, FileBrowserMode::Directory) {
                             button {
-                                class: "px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700",
+                                class: SELECT_CURRENT_BUTTON_CLASS,
                                 onclick: select_current_dir,
                                 "Select Current"
                             }
                         }
                         button {
-                            class: "px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-200",
+                            class: CANCEL_BUTTON_CLASS,
                             onclick: move |_| on_cancel.call(()),
                             "Cancel"
                         }
                         button {
-                            class: "px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50",
+                            class: SELECT_BUTTON_CLASS,
                             disabled: selected.read().is_empty(),
                             onclick: confirm_selection,
                             "Select"
