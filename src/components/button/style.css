@@ -21,22 +21,31 @@
 }
 
 .button[data-style="secondary"] {
-  background-color: var(--primary-color-5);
-  color: var(--secondary-color-1);
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .button[data-style="secondary"]:hover {
-  background-color: var(--primary-color-4);
+  background-color: #d1d5db;
+}
+
+.dark .button[data-style="secondary"] {
+  background-color: #374151;
+  color: #f3f4f6;
+}
+
+.dark .button[data-style="secondary"]:hover {
+  background-color: #4b5563;
 }
 
 .button[data-style="ghost"] {
   background-color: transparent;
-  color: var(--secondary-color-4);
+  color: inherit;
 }
 
 .button[data-style="ghost"]:hover {
-  background-color: var(--primary-color-5);
-  color: var(--secondary-color-1);
+  background-color: rgb(107 114 128 / 0.15);
+  color: inherit;
 }
 
 .button[data-style="outline"] {
