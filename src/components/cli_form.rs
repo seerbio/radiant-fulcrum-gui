@@ -8,6 +8,7 @@ use crate::server_fns::{start_radiant_fulcrum, get_job_status};
 #[cfg(not(feature = "desktop"))]
 use super::file_browser::{FileBrowser, FileBrowserMode};
 use super::form_primitives::FilePathField;
+use super::radio_group::{RadioGroup, RadioItem};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
 
@@ -220,6 +221,7 @@ pub fn CliForm() -> Element {
     let mut fasta = state.fasta;
     let mut config = state.config;
     let mut search_mode = state.search_mode;
+    let mut search_mode_value = use_signal(|| Some("library_free".to_string()));
     let mut fdr_thresh = state.fdr_thresh;
     let mut threads = state.threads;
     let mut results_dir = state.results_dir;
@@ -243,6 +245,16 @@ pub fn CliForm() -> Element {
         }
         if let Some(cfg) = last_files.config {
             config.set(cfg);
+        }
+    });
+
+    use_effect(move || {
+        let next = Some(match *search_mode.read() {
+            SearchMode::LibraryFree => "library_free".to_string(),
+            SearchMode::Mbr => "mbr".to_string(),
+        });
+        if *search_mode_value.read() != next {
+            search_mode_value.set(next);
         }
     });
 
@@ -451,17 +463,26 @@ pub fn CliForm() -> Element {
 
             div { class: "flex flex-col gap-1",
                 label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
-                div { class: "flex gap-4 dark:text-gray-200",
-                    label { class: "flex items-center gap-2",
-                        input { r#type: "radio", name: "search_mode",
-                            checked: *search_mode.read() == SearchMode::LibraryFree,
-                            onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
+                RadioGroup {
+                    class: "flex gap-4 dark:text-gray-200",
+                    horizontal: true,
+                    name: "search_mode",
+                    value: search_mode_value,
+                    on_value_change: move |value: String| {
+                        search_mode_value.set(Some(value.clone()));
+                        match value.as_str() {
+                            "mbr" => search_mode.set(SearchMode::Mbr),
+                            _ => search_mode.set(SearchMode::LibraryFree),
+                        }
+                    },
+                    RadioItem {
+                        value: "library_free".to_string(),
+                        index: 0usize,
                         "Library-free"
                     }
-                    label { class: "flex items-center gap-2",
-                        input { r#type: "radio", name: "search_mode",
-                            checked: *search_mode.read() == SearchMode::Mbr,
-                            onchange: move |_| search_mode.set(SearchMode::Mbr) }
+                    RadioItem {
+                        value: "mbr".to_string(),
+                        index: 1usize,
                         "Match Between Runs (MBR)"
                     }
                 }
