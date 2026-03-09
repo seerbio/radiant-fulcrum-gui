@@ -43,11 +43,12 @@
 }
 
 .radio-item:focus-visible::before {
-  box-shadow: 0 0 0 2px #3b82f6;
+  box-shadow: 0 0 0 2px var(--accent-blue);
 }
 
 .radio-item[data-state="checked"]::before {
-  box-shadow: inset 0 0 0 4px currentColor;
+  border-color: var(--accent-blue);
+  box-shadow: inset 0 0 0 4px var(--accent-blue);
 }
 
 .radio-item[data-disabled="true"] {

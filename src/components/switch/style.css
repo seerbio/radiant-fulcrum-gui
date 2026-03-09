@@ -14,15 +14,15 @@
 }
 
 .switch[data-state="checked"] {
-  background-color: #2563eb;
+  background-color: var(--accent-blue);
 }
 
 .dark .switch[data-state="checked"] {
-  background-color: #3b82f6;
+  background-color: var(--accent-blue);
 }
 
 .switch:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
 }
 
