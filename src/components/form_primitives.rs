@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
 use super::button::{Button as DxButton, ButtonVariant};
-use super::input::Input as DxInput;
 
 #[component]
 pub fn FormSection(title: String, children: Element) -> Element {
@@ -32,14 +31,14 @@ pub fn PathInput(
     class: String,
 ) -> Element {
     rsx! {
-        DxInput {
+        input {
             class: class,
             r#type: "text",
             placeholder: "{placeholder}",
             value: "{value}",
             title: "{title}",
             required: required,
-            oninput: move |e: Event<FormData>| oninput.call(e.value().clone())
+            oninput: move |e: Event<FormData>| oninput.call(e.value().clone()),
         }
     }
 }
@@ -60,8 +59,7 @@ pub fn BrowseButton(onclick: EventHandler<MouseEvent>) -> Element {
 #[component]
 pub fn ClearButton(onclick: EventHandler<MouseEvent>, #[props(default = "Clear".to_string())] title: String) -> Element {
     rsx! {
-        DxButton {
-            variant: ButtonVariant::Ghost,
+        button {
             class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
             r#type: "button",
             onclick: move |e| onclick.call(e),
