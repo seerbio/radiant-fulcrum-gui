@@ -14,6 +14,10 @@ use super::scroll_area::ScrollArea;
 use super::switch::{Switch, SwitchThumb};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
+const PANEL_TITLE_CLASS: &str = "text-xl font-bold mb-2 dark:text-gray-100";
+const FIELD_LABEL_CLASS: &str = "text-sm font-medium dark:text-gray-200";
+const FIELD_GROUP_CLASS: &str = "flex flex-col gap-1";
+const NUMERIC_INPUT_CLASS: &str = "p-2 border rounded dark:bg-gray-900 dark:text-gray-100";
 
 async fn sleep_ms(ms: u64) {
     #[cfg(target_arch = "wasm32")]
@@ -79,7 +83,7 @@ fn output_panel(output: String) -> Element {
     rsx! {
         // Right column - Log/Console Output (2/3 width)
         div { class: "w-2/3 flex flex-col min-h-0",
-            h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
+            h2 { class: PANEL_TITLE_CLASS, "Console Output" }
             ScrollArea { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0".to_string(),
                 "{output}"
             }
@@ -489,10 +493,10 @@ pub fn CliForm() -> Element {
         // Left column - Parameters (1/3 width)
         form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
             onsubmit: on_submit,
-            h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Radiant+Fulcrum Workflow" }
+            h2 { class: PANEL_TITLE_CLASS, "Run Radiant+Fulcrum Workflow" }
 
-            div { class: "flex flex-col gap-1",
-                label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
+            div { class: FIELD_GROUP_CLASS,
+                label { class: FIELD_LABEL_CLASS, "Search Mode" }
                 RadioGroup {
                     class: "flex gap-4 dark:text-gray-200",
                     horizontal: true,
@@ -518,8 +522,8 @@ pub fn CliForm() -> Element {
                 }
             }
 
-            div { class: "flex flex-col gap-1",
-                label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
+            div { class: FIELD_GROUP_CLASS,
+                label { class: FIELD_LABEL_CLASS, "mzML Files" }
                 ScrollArea { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto".to_string(),
                     if mzml_files.read().is_empty() {
                         "No files selected"
@@ -586,10 +590,10 @@ pub fn CliForm() -> Element {
                     }
                     CollapsibleContent {
                         class: "pt-1",
-                        div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                            div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
+                            div { class: FIELD_GROUP_CLASS,
+                                label { class: FIELD_LABEL_CLASS, "FDR Threshold" }
+                                input { class: NUMERIC_INPUT_CLASS,
                                     r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
                                     oninput: move |e| fdr_thresh.set(e.value().clone()) }
                             }
@@ -604,9 +608,9 @@ pub fn CliForm() -> Element {
                                 onclear: clear_config,
                             }
 
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                            div { class: FIELD_GROUP_CLASS,
+                                label { class: FIELD_LABEL_CLASS, "Threads (0 = auto)" }
+                                input { class: NUMERIC_INPUT_CLASS,
                                     r#type: "number", min: "0", value: "{threads}",
                                     oninput: move |e| threads.set(e.value().clone()) }
                             }
