@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq, Default)]
 #[non_exhaustive]
 pub enum ButtonVariant {
