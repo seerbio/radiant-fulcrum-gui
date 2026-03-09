@@ -7,6 +7,7 @@ use crate::server_fns::{start_radiant_fulcrum, get_job_status};
 
 #[cfg(not(feature = "desktop"))]
 use super::file_browser::{FileBrowser, FileBrowserMode};
+use super::form_primitives::FilePathField;
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
 
@@ -135,6 +136,10 @@ impl CliFormState {
         self.save_last_files();
     }
 
+    fn clear_results_dir(mut self) {
+        self.results_dir.set(String::new());
+    }
+
     fn add_mzml_files(mut self, new_paths: Vec<String>) {
         let mut current_files = self.mzml_files.read().clone();
         for path in new_paths {
@@ -244,6 +249,7 @@ pub fn CliForm() -> Element {
     let clear_library = move |_| state.clear_library();
     let clear_fasta = move |_| state.clear_fasta();
     let clear_config = move |_| state.clear_config();
+    let clear_results_dir = move |_| state.clear_results_dir();
 
     let handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
         state.handle_file_selection(target, paths);
@@ -487,60 +493,36 @@ pub fn CliForm() -> Element {
                     r#type: "button", onclick: pick_mzml, "Browse" }
             }
 
-            div { class: "flex flex-col gap-1",
-                label { class: "text-sm font-medium dark:text-gray-200", "Library" }
-                div { class: "flex gap-2",
-                    div { class: "flex-1 relative group",
-                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text",
-                            placeholder: "Select library file...",
-                            value: "{get_filename(&library.read())}",
-                            title: "{library}",
-                            oninput: move |e| library.set(e.value().clone()),
-                            required: true }
-                        if !library.read().is_empty() {
-                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                r#type: "button", onclick: clear_library, title: "Clear", "×" }
-                        }
-                    }
-                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_library, "Browse" }
-                }
+            FilePathField {
+                title: "Library".to_string(),
+                placeholder: "Select library file...".to_string(),
+                value: get_filename(&library.read()).to_string(),
+                full_path: library.read().clone(),
+                required: true,
+                oninput: move |value| library.set(value),
+                onbrowse: pick_library,
+                onclear: clear_library,
             }
 
-            div { class: "flex flex-col gap-1",
-                label { class: "text-sm font-medium dark:text-gray-200", "FASTA" }
-                div { class: "flex gap-2",
-                    div { class: "flex-1 relative group",
-                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text",
-                            placeholder: "Select FASTA file...",
-                            value: "{get_filename(&fasta.read())}",
-                            title: "{fasta}",
-                            oninput: move |e| fasta.set(e.value().clone()),
-                            required: true }
-                        if !fasta.read().is_empty() {
-                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
-                        }
-                    }
-                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_fasta, "Browse" }
-                }
+            FilePathField {
+                title: "FASTA".to_string(),
+                placeholder: "Select FASTA file...".to_string(),
+                value: get_filename(&fasta.read()).to_string(),
+                full_path: fasta.read().clone(),
+                required: true,
+                oninput: move |value| fasta.set(value),
+                onbrowse: pick_fasta,
+                onclear: clear_fasta,
             }
 
-            div { class: "flex flex-col gap-1",
-                label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
-                div { class: "flex gap-2",
-                    input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                        r#type: "text",
-                        placeholder: "Select output directory...",
-                        value: "{get_filename(&results_dir.read())}",
-                        title: "{results_dir}",
-                        oninput: move |e| results_dir.set(e.value().clone()) }
-                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_results_dir, "Browse" }
-                }
+            FilePathField {
+                title: "Results Directory (optional)".to_string(),
+                placeholder: "Select output directory...".to_string(),
+                value: get_filename(&results_dir.read()).to_string(),
+                full_path: results_dir.read().clone(),
+                oninput: move |value| results_dir.set(value),
+                onbrowse: pick_results_dir,
+                onclear: clear_results_dir,
             }
 
             div { class: "flex flex-col gap-2 mt-2",
@@ -562,23 +544,14 @@ pub fn CliForm() -> Element {
                                 oninput: move |e| fdr_thresh.set(e.value().clone()) }
                         }
 
-                        div { class: "flex flex-col gap-1",
-                            label { class: "text-sm font-medium dark:text-gray-200", "Radiant Config (optional)" }
-                            div { class: "flex gap-2",
-                                div { class: "flex-1 relative group",
-                                    input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                        r#type: "text", placeholder: "Select .radiantConfig file...",
-                                        value: "{get_filename(&config.read())}",
-                                        title: "{config}",
-                                        oninput: move |e| config.set(e.value().clone()) }
-                                    if !config.read().is_empty() {
-                                        button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                            r#type: "button", onclick: clear_config, title: "Clear", "×" }
-                                    }
-                                }
-                                button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                                    r#type: "button", onclick: pick_config, "Browse" }
-                            }
+                        FilePathField {
+                            title: "Radiant Config (optional)".to_string(),
+                            placeholder: "Select .radiantConfig file...".to_string(),
+                            value: get_filename(&config.read()).to_string(),
+                            full_path: config.read().clone(),
+                            oninput: move |value| config.set(value),
+                            onbrowse: pick_config,
+                            onclear: clear_config,
                         }
 
                         div { class: "flex flex-col gap-1",

@@ -71,3 +71,36 @@ pub fn ClearButton(onclick: EventHandler<MouseEvent>, #[props(default = "Clear".
         }
     }
 }
+
+#[component]
+pub fn FilePathField(
+    title: String,
+    placeholder: String,
+    value: String,
+    full_path: String,
+    oninput: EventHandler<String>,
+    onbrowse: EventHandler<MouseEvent>,
+    onclear: EventHandler<MouseEvent>,
+    #[props(default = false)] required: bool,
+) -> Element {
+    rsx! {
+        FormSection { title: title,
+            FieldRow {
+                div { class: "flex-1 relative group",
+                    PathInput {
+                        class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100".to_string(),
+                        placeholder: placeholder,
+                        value: value,
+                        title: full_path.clone(),
+                        required: required,
+                        oninput: move |next| oninput.call(next),
+                    }
+                    if !full_path.is_empty() {
+                        ClearButton { onclick: move |e| onclear.call(e), title: "Clear".to_string() }
+                    }
+                }
+                BrowseButton { onclick: onbrowse }
+            }
+        }
+    }
+}
