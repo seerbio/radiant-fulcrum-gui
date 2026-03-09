@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::server_fns::{DirectoryListing, FileEntry, list_directory};
 use crate::components::cli_form::{LAST_DIRECTORY, update_last_dir};
+use crate::components::dialog::{DialogContent, DialogRoot};
 
 #[derive(Clone, PartialEq)]
 pub enum FileBrowserMode {
@@ -101,8 +102,15 @@ pub fn FileBrowser(
     let mode_for_toggle = mode.clone();
 
     rsx! {
-        div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
-            div { class: "bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col",
+        DialogRoot {
+            open: Some(true),
+            on_open_change: move |is_open: bool| {
+                if !is_open {
+                    on_cancel.call(());
+                }
+            },
+            DialogContent {
+                class: "w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl".to_string(),
                 // Header
                 div { class: "p-4 border-b dark:border-gray-700 flex justify-between items-center",
                     h3 { class: "text-lg font-semibold dark:text-gray-100",
