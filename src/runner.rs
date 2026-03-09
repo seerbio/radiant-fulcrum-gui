@@ -95,20 +95,6 @@ pub fn run_radiant_fulcrum<F>(config: RunConfig, mut on_output: F) -> io::Result
 where
     F: FnMut(&str),
 {
-    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_filename = format!("radiant-fulcrum-{}.log", timestamp);
-
-    // If no results directory is configured, the CLI will create one in the
-    // current working dir; we can just write our log to "." to keep things simple.
-    let log_dir = config.results_dir.as_ref()
-        .filter(|dir| !dir.is_empty())
-        .map(|s| s.as_str())
-        .unwrap_or(".");
-
-    let mut log_file = fs::create_dir_all(log_dir)
-        .ok()
-        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
-
     let img = config.get_img();
 
     let dry_run = std::env::args().any(|arg| arg == "--dry-run");
@@ -256,6 +242,21 @@ where
         thread::sleep(std::time::Duration::from_secs(5));
         return Ok(0);
     }
+
+    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
+    let log_filename = format!("radiant-fulcrum-{}.log", timestamp);
+
+    // If no results directory is configured, the CLI will create one in the
+    // current working dir; we can just write our log to "." to keep things simple.
+    let log_dir = config.results_dir.as_ref()
+        .filter(|dir| !dir.is_empty())
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    let mut log_file = fs::create_dir_all(log_dir)
+        .ok()
+        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
+
 
     run_command(&mut on_output, &mut cmd, &mut log_file)
 }
