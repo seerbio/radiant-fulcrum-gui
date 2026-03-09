@@ -11,6 +11,7 @@ uuid = { version = "1.0", features = ["v4"] }
 dark-light = "2.0.0"
 chrono = "0.4"
 toml = "0.8"
+dioxus-primitives = { git = "https://github.com/DioxusLabs/components", version = "0.0.1", default-features = false }
 
 # For WASM builds, we need js feature for uuid's getrandom dependency
 [target.'cfg(target_arch = "wasm32")'.dependencies]
