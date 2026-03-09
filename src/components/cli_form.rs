@@ -10,6 +10,7 @@ use super::collapsible::{Collapsible, CollapsibleContent, CollapsibleTrigger};
 use super::file_browser::{FileBrowser, FileBrowserMode};
 use super::form_primitives::FilePathField;
 use super::radio_group::{RadioGroup, RadioItem};
+use super::scroll_area::ScrollArea;
 use super::switch::{Switch, SwitchThumb};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
@@ -79,7 +80,7 @@ fn output_panel(output: String) -> Element {
         // Right column - Log/Console Output (2/3 width)
         div { class: "w-2/3 flex flex-col min-h-0",
             h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
-            div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0",
+            ScrollArea { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0".to_string(),
                 "{output}"
             }
         }
@@ -519,7 +520,7 @@ pub fn CliForm() -> Element {
 
             div { class: "flex flex-col gap-1",
                 label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
-                div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
+                ScrollArea { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto".to_string(),
                     if mzml_files.read().is_empty() {
                         "No files selected"
                     } else {

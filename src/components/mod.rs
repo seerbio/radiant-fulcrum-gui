@@ -14,3 +14,4 @@ pub mod input;
 pub mod radio_group;
 pub mod collapsible;
 pub mod switch;
+pub mod scroll_area;
