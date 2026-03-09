@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use dioxus_primitives::collapsible::{
     self, CollapsibleContentProps, CollapsibleProps, CollapsibleTriggerProps,
 };
+use crate::components::class_utils::with_base_class;
 
 #[component]
 pub fn Collapsible(props: CollapsibleProps) -> Element {
@@ -22,8 +23,10 @@ pub fn Collapsible(props: CollapsibleProps) -> Element {
 
 #[component]
 pub fn CollapsibleTrigger(props: CollapsibleTriggerProps) -> Element {
+    let attributes = with_base_class(props.attributes, "collapsible-trigger");
+
     rsx! {
-        collapsible::CollapsibleTrigger { class: "collapsible-trigger", attributes: props.attributes,
+        collapsible::CollapsibleTrigger { attributes: attributes,
             {props.children}
             svg {
                 class: "collapsible-expand-icon",
@@ -40,11 +43,12 @@ pub fn CollapsibleTrigger(props: CollapsibleTriggerProps) -> Element {
 
 #[component]
 pub fn CollapsibleContent(props: CollapsibleContentProps) -> Element {
+    let attributes = with_base_class(props.attributes, "collapsible-content");
+
     rsx! {
         collapsible::CollapsibleContent {
-            class: "collapsible-content",
             id: props.id,
-            attributes: props.attributes,
+            attributes: attributes,
             {props.children}
         }
     }

@@ -1,6 +1,7 @@
 //! The components module contains all shared components for our app.
 
 mod cli_form;
+mod class_utils;
 #[cfg(any(feature = "web", feature = "server"))]
 mod file_browser;
 pub(crate) mod form_primitives;
