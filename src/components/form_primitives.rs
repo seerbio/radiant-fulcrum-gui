@@ -1,13 +1,12 @@
 use dioxus::prelude::*;
 use super::button::{Button as DxButton, ButtonVariant};
 use super::input::Input as DxInput;
-use super::label::Label as DxLabel;
 
 #[component]
 pub fn FormSection(title: String, children: Element) -> Element {
     rsx! {
         div { class: "flex flex-col gap-1",
-            DxLabel { class: "text-sm font-medium dark:text-gray-200", html_for: "", "{title}" }
+            label { class: "text-sm font-medium dark:text-gray-200", "{title}" }
             {children}
         }
     }
