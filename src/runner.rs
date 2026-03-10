@@ -95,21 +95,9 @@ pub fn run_radiant_fulcrum<F>(config: RunConfig, mut on_output: F) -> io::Result
 where
     F: FnMut(&str),
 {
-    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
-    let log_filename = format!("radiant-fulcrum-{}.log", timestamp);
-
-    // If no results directory is configured, the CLI will create one in the
-    // current working dir; we can just write our log to "." to keep things simple.
-    let log_dir = config.results_dir.as_ref()
-        .filter(|dir| !dir.is_empty())
-        .map(|s| s.as_str())
-        .unwrap_or(".");
-
-    let mut log_file = fs::create_dir_all(log_dir)
-        .ok()
-        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
-
     let img = config.get_img();
+
+    let dry_run = std::env::args().any(|arg| arg == "--dry-run");
 
     // Check that we can run docker
     match run_command(&mut |_| {}, Command::new("which").arg("docker"), &mut None) {
@@ -120,14 +108,18 @@ where
     }
 
     if config.check_image_updates {
-        match pull_image(&img, &mut on_output) {
-            Ok(0) => {}
-            Ok(i) => {
-                return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! Exit code {}", i)));
+        if !dry_run {
+            match pull_image(&img, &mut on_output) {
+                Ok(0) => {}
+                Ok(i) => {
+                    return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! Exit code {}", i)));
+                }
+                Err(e) => {
+                    return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! {}", e)));
+                }
             }
-            Err(e) => {
-                return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to check for Docker image updates! {}", e)));
-            }
+        } else {
+            on_output("[dry-run] Skipping image update check.")
         }
     }
 
@@ -225,8 +217,6 @@ where
         args.push(file);
     }
 
-    on_output(&format!("Running {args:?}"));
-
     let mut cmd = Command::new("docker");
     cmd.arg("run").arg("--rm");
 
@@ -234,7 +224,39 @@ where
         cmd.arg(vol_arg);
     }
 
+    for (host_dir, container_dir) in mapper.mounts {
+        on_output(&format!("Mounting folder {} -> {}", host_dir.display(), container_dir.display()));
+    }
+
+    on_output(&format!("Running {args:?}"));
+
     cmd.arg(img).args(&args);
+    if dry_run {
+        let mut command_parts = vec![cmd.get_program().to_string_lossy().into_owned()];
+        command_parts.extend(cmd.get_args().map(|arg| arg.to_string_lossy().into_owned()));
+
+        on_output("[dry-run] Enabled via --dry-run");
+        on_output(&format!("[dry-run] docker command: {command_parts:?}"));
+        on_output("[dry-run] Skipping Docker execution");
+
+        thread::sleep(std::time::Duration::from_secs(5));
+        return Ok(0);
+    }
+
+    let timestamp = Local::now().format("%Y-%m-%d-%H%M%S").to_string();
+    let log_filename = format!("radiant-fulcrum-{}.log", timestamp);
+
+    // If no results directory is configured, the CLI will create one in the
+    // current working dir; we can just write our log to "." to keep things simple.
+    let log_dir = config.results_dir.as_ref()
+        .filter(|dir| !dir.is_empty())
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    let mut log_file = fs::create_dir_all(log_dir)
+        .ok()
+        .and_then(|_| File::create(Path::new(log_dir).join(&log_filename)).ok());
+
 
     run_command(&mut on_output, &mut cmd, &mut log_file)
 }

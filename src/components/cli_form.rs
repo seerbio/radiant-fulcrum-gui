@@ -5,10 +5,19 @@ use std::path::Path;
 
 use crate::server_fns::{start_radiant_fulcrum, get_job_status};
 
+use super::collapsible::{Collapsible, CollapsibleContent, CollapsibleTrigger};
 #[cfg(not(feature = "desktop"))]
 use super::file_browser::{FileBrowser, FileBrowserMode};
+use super::form_primitives::{FilePathField, MultiFileField};
+use super::radio_group::{RadioGroup, RadioItem};
+use super::scroll_area::ScrollArea;
+use super::switch::{Switch, SwitchThumb};
 
 pub static LAST_DIRECTORY: GlobalSignal<Option<String>> = Signal::global(|| None);
+const PANEL_TITLE_CLASS: &str = "text-xl font-bold mb-2 dark:text-gray-100";
+const FIELD_LABEL_CLASS: &str = "text-sm font-medium dark:text-gray-200";
+const FIELD_GROUP_CLASS: &str = "flex flex-col gap-1";
+const NUMERIC_INPUT_CLASS: &str = "p-2 border rounded dark:bg-gray-900 dark:text-gray-100";
 
 async fn sleep_ms(ms: u64) {
     #[cfg(target_arch = "wasm32")]
@@ -58,24 +67,196 @@ enum BrowserTarget {
     MzmlFiles,
 }
 
+fn cli_form_layout(file_browser_element: Element, params_panel: Element, output_panel: Element) -> Element {
+    rsx! {
+        // File browser modal (web/server only)
+        {file_browser_element}
+
+        div { class: "flex gap-6 p-6 h-full overflow-hidden",
+            {params_panel}
+            {output_panel}
+        }
+    }
+}
+
+fn output_panel(output: String) -> Element {
+    rsx! {
+        // Right column - Log/Console Output (2/3 width)
+        div { class: "w-2/3 flex flex-col min-h-0",
+            h2 { class: PANEL_TITLE_CLASS, "Console Output" }
+            ScrollArea { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0".to_string(),
+                "{output}"
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct CliFormState {
+    library: Signal<String>,
+    fasta: Signal<String>,
+    config: Signal<String>,
+    search_mode: Signal<SearchMode>,
+    fdr_thresh: Signal<String>,
+    threads: Signal<String>,
+    results_dir: Signal<String>,
+    mzml_files: Signal<Vec<String>>,
+    output: Signal<String>,
+    running: Signal<bool>,
+    job_id: Signal<Option<String>>,
+    show_advanced: Signal<bool>,
+    check_image_updates: Signal<bool>,
+    #[cfg(not(feature = "desktop"))]
+    show_browser: Signal<Option<BrowserTarget>>,
+}
+
+impl CliFormState {
+    fn save_last_files(self) {
+        let last_files = storage::LastFiles {
+            library: {
+                let lib = self.library.read().clone();
+                if lib.is_empty() { None } else { Some(lib) }
+            },
+            fasta: {
+                let fas = self.fasta.read().clone();
+                if fas.is_empty() { None } else { Some(fas) }
+            },
+            config: {
+                let cfg = self.config.read().clone();
+                if cfg.is_empty() { None } else { Some(cfg) }
+            },
+        };
+        storage::save(&last_files);
+    }
+
+    fn clear_library(mut self) {
+        self.library.set(String::new());
+        self.save_last_files();
+    }
+
+    fn clear_fasta(mut self) {
+        self.fasta.set(String::new());
+        self.save_last_files();
+    }
+
+    fn clear_config(mut self) {
+        self.config.set(String::new());
+        self.save_last_files();
+    }
+
+    fn clear_results_dir(mut self) {
+        self.results_dir.set(String::new());
+    }
+
+    fn add_mzml_files(mut self, new_paths: Vec<String>) {
+        let mut current_files = self.mzml_files.read().clone();
+        for path in new_paths {
+            if !current_files.contains(&path) {
+                current_files.push(path);
+            }
+        }
+        self.mzml_files.set(current_files);
+    }
+
+    fn handle_file_selection(mut self, target: BrowserTarget, paths: Vec<String>) {
+        match target {
+            BrowserTarget::Library => if let Some(path) = paths.first() {
+                self.library.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::Fasta => if let Some(path) = paths.first() {
+                self.fasta.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::Config => if let Some(path) = paths.first() {
+                self.config.set(path.clone());
+                self.save_last_files();
+            },
+            BrowserTarget::ResultsDir => if let Some(path) = paths.first() {
+                self.results_dir.set(path.clone());
+            },
+            BrowserTarget::MzmlFiles => self.add_mzml_files(paths),
+        }
+    }
+
+    fn run_config(self) -> RunConfig {
+        RunConfig {
+            library: self.library.read().clone(),
+            fasta: self.fasta.read().clone(),
+            config: {
+                let c = self.config.read().clone();
+                if c.is_empty() { None } else { Some(c) }
+            },
+            search_mode: *self.search_mode.read(),
+            fdr_thresh: self.fdr_thresh.read().clone(),
+            threads: self.threads.read().clone(),
+            results_dir: {
+                let r = self.results_dir.read().clone();
+                if r.is_empty() { None } else { Some(r) }
+            },
+            mzml_files: self.mzml_files.read().clone(),
+            img: None,
+            check_image_updates: *self.check_image_updates.read(),
+        }
+    }
+
+    fn missing_required_fields(self) -> Vec<&'static str> {
+        let mut missing = Vec::new();
+
+        if self.library.read().trim().is_empty() {
+            missing.push("Library");
+        }
+        if self.fasta.read().trim().is_empty() {
+            missing.push("FASTA");
+        }
+        if self.mzml_files.read().is_empty() {
+            missing.push("mzML Files");
+        }
+
+        missing
+    }
+}
+
+fn use_cli_form_state() -> CliFormState {
+    CliFormState {
+        library: use_signal(String::new),
+        fasta: use_signal(String::new),
+        config: use_signal(String::new),
+        search_mode: use_signal(|| SearchMode::LibraryFree),
+        fdr_thresh: use_signal(|| "0.01".to_string()),
+        threads: use_signal(|| "0".to_string()),
+        results_dir: use_signal(String::new),
+        mzml_files: use_signal(Vec::<String>::new),
+        output: use_signal(String::new),
+        running: use_signal(|| false),
+        job_id: use_signal(|| None::<String>),
+        show_advanced: use_signal(|| false),
+        check_image_updates: use_signal(|| false),
+        #[cfg(not(feature = "desktop"))]
+        show_browser: use_signal(|| None::<BrowserTarget>),
+    }
+}
+
 #[component]
 pub fn CliForm() -> Element {
-    let mut library = use_signal(String::new);
-    let mut fasta = use_signal(String::new);
-    let mut config = use_signal(String::new);
-    let mut search_mode = use_signal(|| SearchMode::LibraryFree);
-    let mut fdr_thresh = use_signal(|| "0.01".to_string());
-    let mut threads = use_signal(|| "0".to_string());
-    let mut results_dir = use_signal(String::new);
-    let mut mzml_files = use_signal(Vec::<String>::new);
-    let mut output = use_signal(String::new);
-    let mut running = use_signal(|| false);
-    let mut job_id = use_signal(|| None::<String>);
-    let mut show_advanced = use_signal(|| false);
-    let mut check_image_updates = use_signal(|| false);
+    let state = use_cli_form_state();
+    let mut library = state.library;
+    let mut fasta = state.fasta;
+    let mut config = state.config;
+    let mut search_mode = state.search_mode;
+    let mut search_mode_value = use_signal(|| Some("library_free".to_string()));
+    let mut fdr_thresh = state.fdr_thresh;
+    let mut threads = state.threads;
+    let mut results_dir = state.results_dir;
+    let mut mzml_files = state.mzml_files;
+    let mut output = state.output;
+    let mut running = state.running;
+    let mut job_id = state.job_id;
+    let mut show_advanced = state.show_advanced;
+    let mut check_image_updates = state.check_image_updates;
 
     #[cfg(not(feature = "desktop"))]
-    let mut show_browser = use_signal(|| None::<BrowserTarget>);
+    let mut show_browser = state.show_browser;
 
     use_effect(move || {
         let last_files = storage::load();
@@ -90,66 +271,23 @@ pub fn CliForm() -> Element {
         }
     });
 
-    let save_last_files = move || {
-        let last_files = storage::LastFiles {
-            library: {
-                let lib = library.read().clone();
-                if lib.is_empty() { None } else { Some(lib) }
-            },
-            fasta: {
-                let fas = fasta.read().clone();
-                if fas.is_empty() { None } else { Some(fas) }
-            },
-            config: {
-                let cfg = config.read().clone();
-                if cfg.is_empty() { None } else { Some(cfg) }
-            },
-        };
-        storage::save(&last_files);
-    };
-
-    let clear_library = move |_| {
-        library.set(String::new());
-        save_last_files();
-    };
-
-    let clear_fasta = move |_| {
-        fasta.set(String::new());
-        save_last_files();
-    };
-
-    let clear_config = move |_| {
-        config.set(String::new());
-        save_last_files();
-    };
-
-    let mut add_mzml_files = move |new_paths: Vec<String>| {
-        let mut current_files = mzml_files.read().clone();
-        for path in new_paths {
-            if !current_files.contains(&path) {
-                current_files.push(path);
-            }
+    use_effect(move || {
+        let next = Some(match *search_mode.read() {
+            SearchMode::LibraryFree => "library_free".to_string(),
+            SearchMode::Mbr => "mbr".to_string(),
+        });
+        if *search_mode_value.read() != next {
+            search_mode_value.set(next);
         }
-        mzml_files.set(current_files);
-    };
+    });
 
-    let mut handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
-        match target {
-            BrowserTarget::Library => if let Some(path) = paths.first() {
-                library.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::Fasta => if let Some(path) = paths.first() {
-                fasta.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::Config => if let Some(path) = paths.first() {
-                config.set(path.clone());
-                save_last_files();
-            },
-            BrowserTarget::ResultsDir => if let Some(path) = paths.first() { results_dir.set(path.clone()); },
-            BrowserTarget::MzmlFiles => add_mzml_files(paths),
-        }
+    let clear_library = move |_| state.clear_library();
+    let clear_fasta = move |_| state.clear_fasta();
+    let clear_config = move |_| state.clear_config();
+    let clear_results_dir = move |_| state.clear_results_dir();
+
+    let handle_file_selection = move |target: BrowserTarget, paths: Vec<String>| {
+        state.handle_file_selection(target, paths);
     };
 
     #[cfg(feature = "desktop")]
@@ -286,27 +424,20 @@ pub fn CliForm() -> Element {
     let on_submit = move |evt: Event<FormData>| {
         evt.prevent_default();
         if *running.read() { return; }
+
+        let missing = state.missing_required_fields();
+        if !missing.is_empty() {
+            output.set(format!(
+                "Cannot start run. Missing required field(s):\n- {}",
+                missing.join("\n- ")
+            ));
+            return;
+        }
+
         running.set(true);
         output.set("Starting job...".to_string());
 
-        let run_config = RunConfig {
-            library: library.read().clone(),
-            fasta: fasta.read().clone(),
-            config: {
-                let c = config.read().clone();
-                if c.is_empty() { None } else { Some(c) }
-            },
-            search_mode: *search_mode.read(),
-            fdr_thresh: fdr_thresh.read().clone(),
-            threads: threads.read().clone(),
-            results_dir: {
-                let r = results_dir.read().clone();
-                if r.is_empty() { None } else { Some(r) }
-            },
-            mzml_files: mzml_files.read().clone(),
-            img: None,
-            check_image_updates: *check_image_updates.read(),
-        };
+        let run_config = state.run_config();
 
         spawn(async move {
             match start_radiant_fulcrum(run_config).await {
@@ -356,185 +487,166 @@ pub fn CliForm() -> Element {
 
     #[cfg(feature = "desktop")]
     let file_browser_element = rsx! {};
+    let has_missing_required = !state.missing_required_fields().is_empty();
 
-    rsx! {
-        // File browser modal (web/server only)
-        {file_browser_element}
+    let params_panel = rsx! {
+        // Left column - Parameters (1/3 width)
+        form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
+            onsubmit: on_submit,
+            h2 { class: PANEL_TITLE_CLASS, "Run Radiant+Fulcrum Workflow" }
 
-        div { class: "flex gap-6 p-6 h-full overflow-hidden",
-            // Left column - Parameters (1/3 width)
-            form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
-                onsubmit: on_submit,
-                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Run Radiant+Fulcrum Workflow" }
-
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Search Mode" }
-                    div { class: "flex gap-4 dark:text-gray-200",
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::LibraryFree,
-                                onchange: move |_| search_mode.set(SearchMode::LibraryFree) }
-                            "Library-free"
+            div { class: FIELD_GROUP_CLASS,
+                label { class: FIELD_LABEL_CLASS, "Search Mode" }
+                RadioGroup {
+                    class: "flex gap-4 dark:text-gray-200",
+                    horizontal: true,
+                    name: "search_mode",
+                    value: search_mode_value,
+                    on_value_change: move |value: String| {
+                        search_mode_value.set(Some(value.clone()));
+                        match value.as_str() {
+                            "mbr" => search_mode.set(SearchMode::Mbr),
+                            _ => search_mode.set(SearchMode::LibraryFree),
                         }
-                        label { class: "flex items-center gap-2",
-                            input { r#type: "radio", name: "search_mode",
-                                checked: *search_mode.read() == SearchMode::Mbr,
-                                onchange: move |_| search_mode.set(SearchMode::Mbr) }
-                            "Match Between Runs (MBR)"
-                        }
+                    },
+                    RadioItem {
+                        value: "library_free".to_string(),
+                        index: 0usize,
+                        "Library-free"
+                    }
+                    RadioItem {
+                        value: "mbr".to_string(),
+                        index: 1usize,
+                        "Match Between Runs (MBR)"
                     }
                 }
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "mzML Files" }
-                    div { class: "mt-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100 text-sm max-h-32 overflow-y-auto",
-                        if mzml_files.read().is_empty() {
-                            "No files selected"
-                        } else {
-                            for (idx, file) in mzml_files.read().iter().enumerate() {
-                                div { class: "py-0.5 flex items-center justify-between gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 px-1 rounded group",
-                                    span { class: "flex-1 truncate", title: "{file}", "{get_filename(file)}" }
-                                    button { class: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 px-2 text-lg font-bold",
-                                        r#type: "button",
-                                        onclick: move |_| {
-                                            let mut files = mzml_files.read().clone();
-                                            files.remove(idx);
-                                            mzml_files.set(files);
-                                        },
-                                        "×"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    button { class: "mt-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                        r#type: "button", onclick: pick_mzml, "Browse" }
-                }
+            MultiFileField {
+                title: "mzML Files".to_string(),
+                files: mzml_files.read().clone(),
+                on_remove: move |idx| {
+                    let mut files = mzml_files.read().clone();
+                    files.remove(idx);
+                    mzml_files.set(files);
+                },
+                on_browse: pick_mzml,
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Library" }
-                    div { class: "flex gap-2",
-                        div { class: "flex-1 relative group",
-                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text",
-                                placeholder: "Select library file...",
-                                value: "{get_filename(&library.read())}",
-                                title: "{library}",
-                                oninput: move |e| library.set(e.value().clone()),
-                                required: true }
-                            if !library.read().is_empty() {
-                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                    r#type: "button", onclick: clear_library, title: "Clear", "×" }
-                            }
-                        }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_library, "Browse" }
-                    }
-                }
+            FilePathField {
+                title: "Library".to_string(),
+                placeholder: "Select library file...".to_string(),
+                value: get_filename(&library.read()).to_string(),
+                full_path: library.read().clone(),
+                required: true,
+                oninput: move |value| library.set(value),
+                onbrowse: pick_library,
+                onclear: clear_library,
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "FASTA" }
-                    div { class: "flex gap-2",
-                        div { class: "flex-1 relative group",
-                            input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                r#type: "text",
-                                placeholder: "Select FASTA file...",
-                                value: "{get_filename(&fasta.read())}",
-                                title: "{fasta}",
-                                oninput: move |e| fasta.set(e.value().clone()),
-                                required: true }
-                            if !fasta.read().is_empty() {
-                                button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                    r#type: "button", onclick: clear_fasta, title: "Clear", "×" }
-                            }
-                        }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_fasta, "Browse" }
-                    }
-                }
+            FilePathField {
+                title: "FASTA".to_string(),
+                placeholder: "Select FASTA file...".to_string(),
+                value: get_filename(&fasta.read()).to_string(),
+                full_path: fasta.read().clone(),
+                required: true,
+                oninput: move |value| fasta.set(value),
+                onbrowse: pick_fasta,
+                onclear: clear_fasta,
+            }
 
-                div { class: "flex flex-col gap-1",
-                    label { class: "text-sm font-medium dark:text-gray-200", "Results Directory (optional)" }
-                    div { class: "flex gap-2",
-                        input { class: "flex-1 p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
-                            r#type: "text",
-                            placeholder: "Select output directory...",
-                            value: "{get_filename(&results_dir.read())}",
-                            title: "{results_dir}",
-                            oninput: move |e| results_dir.set(e.value().clone()) }
-                        button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                            r#type: "button", onclick: pick_results_dir, "Browse" }
-                    }
-                }
+            FilePathField {
+                title: "Results Directory (optional)".to_string(),
+                placeholder: "Select output directory...".to_string(),
+                value: get_filename(&results_dir.read()).to_string(),
+                full_path: results_dir.read().clone(),
+                oninput: move |value| results_dir.set(value),
+                onbrowse: pick_results_dir,
+                onclear: clear_results_dir,
+            }
 
-                div { class: "flex flex-col gap-2 mt-2",
-                    button { class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
-                        r#type: "button",
-                        onclick: move |_| {
-                            let current = *show_advanced.read();
-                            show_advanced.set(!current);
-                        },
+            div { class: "flex flex-col gap-2 mt-2",
+                Collapsible {
+                    open: Some(*show_advanced.read()),
+                    on_open_change: move |is_open| show_advanced.set(is_open),
+                    CollapsibleTrigger {
+                        class: "text-left text-sm font-medium dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400",
                         if *show_advanced.read() { "▼ Advanced" } else { "▶ Advanced" }
                     }
-
-                    if *show_advanced.read() {
-                        div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "FDR Threshold" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                    CollapsibleContent {
+                        class: "pt-1",
+                            div { class: "flex flex-col gap-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600",
+                            div { class: FIELD_GROUP_CLASS,
+                                label { class: FIELD_LABEL_CLASS, "FDR Threshold" }
+                                input { class: NUMERIC_INPUT_CLASS,
                                     r#type: "number", step: "0.001", min: "0", max: "1", value: "{fdr_thresh}",
                                     oninput: move |e| fdr_thresh.set(e.value().clone()) }
                             }
 
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Radiant Config (optional)" }
-                                div { class: "flex gap-2",
-                                    div { class: "flex-1 relative group",
-                                        input { class: "w-full p-2 pr-8 border rounded dark:bg-gray-900 dark:text-gray-100",
-                                            r#type: "text", placeholder: "Select .radiantConfig file...",
-                                            value: "{get_filename(&config.read())}",
-                                            title: "{config}",
-                                            oninput: move |e| config.set(e.value().clone()) }
-                                        if !config.read().is_empty() {
-                                            button { class: "absolute right-2 top-1/2 -translate-y-1/2 px-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-lg font-bold opacity-0 group-hover:opacity-100",
-                                                r#type: "button", onclick: clear_config, title: "Clear", "×" }
-                                        }
-                                    }
-                                    button { class: "px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-gray-100",
-                                        r#type: "button", onclick: pick_config, "Browse" }
-                                }
+                            FilePathField {
+                                title: "Radiant Config (optional)".to_string(),
+                                placeholder: "Select .radiantConfig file...".to_string(),
+                                value: get_filename(&config.read()).to_string(),
+                                full_path: config.read().clone(),
+                                oninput: move |value| config.set(value),
+                                onbrowse: pick_config,
+                                onclear: clear_config,
                             }
 
-                            div { class: "flex flex-col gap-1",
-                                label { class: "text-sm font-medium dark:text-gray-200", "Threads (0 = auto)" }
-                                input { class: "p-2 border rounded dark:bg-gray-900 dark:text-gray-100",
+                            div { class: FIELD_GROUP_CLASS,
+                                label { class: FIELD_LABEL_CLASS, "Threads (0 = auto)" }
+                                input { class: NUMERIC_INPUT_CLASS,
                                     r#type: "number", min: "0", value: "{threads}",
                                     oninput: move |e| threads.set(e.value().clone()) }
                             }
 
                             div { class: "flex flex-col gap-1",
                                 label { class: "flex items-center gap-2 text-sm font-medium dark:text-gray-200 cursor-pointer",
-                                    input { r#type: "checkbox",
-                                        checked: *check_image_updates.read(),
-                                        onchange: move |e| check_image_updates.set(e.checked()) }
+                                    Switch {
+                                        checked: Some(*check_image_updates.read()),
+                                        on_checked_change: move |is_checked| check_image_updates.set(is_checked),
+                                        aria_label: "Check for Docker image updates",
+                                        SwitchThumb {}
+                                    }
                                     "Check for Docker image updates"
                                 }
                             }
                         }
                     }
                 }
-
-                button { class: "mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded disabled:opacity-50",
-                    r#type: "submit", disabled: *running.read(), "Run" }
             }
 
-            // Right column - Log/Console Output (2/3 width)
-            div { class: "w-2/3 flex flex-col min-h-0",
-                h2 { class: "text-xl font-bold mb-2 dark:text-gray-100", "Console Output" }
-                div { class: "flex-1 p-4 bg-gray-100 dark:bg-gray-900 rounded shadow text-xs font-mono dark:text-gray-100 whitespace-pre-wrap overflow-auto min-h-0",
-                    "{output}"
+            button {
+                class: format!(
+                    "mt-2 py-2 px-4 text-white font-semibold rounded {}",
+                    if *running.read() {
+                        "bg-gray-500 opacity-70 cursor-not-allowed"
+                    } else if has_missing_required {
+                        "bg-blue-500 hover:bg-blue-600 cursor-pointer"
+                    } else {
+                        "bg-blue-600 hover:bg-blue-700"
+                    }
+                ),
+                r#type: "submit",
+                disabled: *running.read(),
+                aria_disabled: if *running.read() { "true" } else { "false" },
+                title: if *running.read() {
+                    "Workflow is currently running"
+                } else if has_missing_required {
+                    "Click to see what is missing"
+                } else {
+                    "Run workflow"
+                },
+                if *running.read() {
+                    "Running..."
+                } else {
+                    "Run"
                 }
             }
         }
-    }
+    };
+
+    let output_text = output.read().clone();
+    let output_panel = output_panel(output_text);
+    cli_form_layout(file_browser_element, params_panel, output_panel)
 }

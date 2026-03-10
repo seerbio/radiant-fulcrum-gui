@@ -1,0 +1,97 @@
+/* This file contains the global styles for the styled dioxus components. You only
+ * need to import this file once in your project root.
+ */
+body {
+  padding: 0;
+  margin: 0;
+  background-color: var(--primary-color);
+  color: var(--secondary-color-4);
+  font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif);
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-weight: 400;
+}
+
+:root {
+  /* Primary colors */
+  --primary-color: #fff;
+  --primary-color-1: #fbfbfb;
+  --primary-color-2: #fff;
+  --primary-color-3: #f8f8f8;
+  --primary-color-4: #f8f8f8;
+  --primary-color-5: #f5f5f5;
+  --primary-color-6: #e5e5e5;
+  --primary-color-7: #b0b0b0;
+
+  /* Secondary colors */
+  --secondary-color: #000;
+  --secondary-color-1: #000;
+  --secondary-color-2: #0d0d0d;
+  --secondary-color-3: #2b2b2b;
+  --secondary-color-4: #111;
+  --secondary-color-5: #848484;
+  --secondary-color-6: #d0d0d0;
+
+  /* Highlight colors */
+  --focused-border-color: #2b7fff;
+  --primary-success-color: #ecfdf5;
+  --secondary-success-color: #10b981;
+  --primary-warning-color: #fffbeb;
+  --secondary-warning-color: #f59e0b;
+  --primary-error-color: #dc2626;
+  --secondary-error-color: #ef4444;
+  --contrast-error-color: var(--primary-color);
+  --primary-info-color: var(--primary-color);
+  --secondary-info-color: var(--secondary-color-3);
+}
+
+.dark {
+  /* Primary colors */
+  --primary-color: #000;
+  --primary-color-1: #0e0e0e;
+  --primary-color-2: #0a0a0a;
+  --primary-color-3: #141313;
+  --primary-color-4: #1a1a1a;
+  --primary-color-5: #262626;
+  --primary-color-6: #232323;
+  --primary-color-7: #3e3e3e;
+
+  /* Secondary colors */
+  --secondary-color: #fff;
+  --secondary-color-1: #fafafa;
+  --secondary-color-2: #e6e6e6;
+  --secondary-color-3: #dcdcdc;
+  --secondary-color-4: #d4d4d4;
+  --secondary-color-5: #a1a1a1;
+  --secondary-color-6: #5d5d5d;
+
+  /* Highlight colors */
+  --focused-border-color: #2b7fff;
+  --primary-success-color: #02271c;
+  --secondary-success-color: #b6fae3;
+  --primary-warning-color: #342203;
+  --secondary-warning-color: #feeac7;
+  --primary-error-color: #a22e2e;
+  --secondary-error-color: #9b1c1c;
+  --contrast-error-color: var(--secondary-color-3);
+  --primary-info-color: var(--primary-color-5);
+  --secondary-info-color: var(--primary-color-7);
+}
+
+/* Modern browsers with `scrollbar-*` support */
+@supports (scrollbar-width: auto) {
+  :not(:hover) {
+    scrollbar-color: rgb(0 0 0 / 0%) rgb(0 0 0 / 0%);
+  }
+
+  :hover {
+    scrollbar-color: var(--secondary-color-2) rgb(0 0 0 / 0%);
+  }
+}
+
+/* Legacy browsers with `::-webkit-scrollbar-*` support */
+@supports selector(::-webkit-scrollbar) {
+  :root::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

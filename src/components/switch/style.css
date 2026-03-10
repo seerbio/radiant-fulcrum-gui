@@ -1,0 +1,47 @@
+.switch {
+  position: relative;
+  width: 2.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 9999px;
+  background-color: #9ca3af;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.dark .switch {
+  background-color: #4b5563;
+}
+
+.switch[data-state="checked"] {
+  background-color: var(--accent-blue);
+}
+
+.dark .switch[data-state="checked"] {
+  background-color: var(--accent-blue);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.switch[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.switch-thumb {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.2rem;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  transform: translateX(0);
+  transition: transform 150ms ease;
+}
+
+.switch[data-state="checked"] .switch-thumb {
+  transform: translateX(1rem);
+}
