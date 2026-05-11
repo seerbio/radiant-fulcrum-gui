@@ -47,6 +47,7 @@ pub fn FieldRow(children: Element) -> Element {
 
 #[component]
 pub fn PathInput(
+    name: String,
     value: String,
     title: String,
     placeholder: String,
@@ -59,6 +60,7 @@ pub fn PathInput(
         input {
             class: class,
             r#type: "text",
+            name: "{name}",
             placeholder: "{placeholder}",
             value: "{value}",
             title: "{title}",
@@ -105,15 +107,25 @@ pub fn FilePathField(
     onclear: EventHandler<MouseEvent>,
     #[props(default = false)] required: bool,
 ) -> Element {
+    let field_title = title.clone();
+    let input_title = if required {
+        format!("Please select {}", title)
+    } else if full_path.is_empty() {
+        title.clone()
+    } else {
+        full_path.clone()
+    };
+
     rsx! {
         FormSection { title: title,
             FieldRow {
                 div { class: "flex-1 relative group",
                     PathInput {
+                        name: field_title,
                         class: PATH_INPUT_CLASS.to_string(),
                         placeholder: placeholder,
                         value: value,
-                        title: full_path.clone(),
+                        title: input_title,
                         required: required,
                         oninput: move |next| oninput.call(next),
                     }

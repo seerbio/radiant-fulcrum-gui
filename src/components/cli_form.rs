@@ -209,6 +209,9 @@ impl CliFormState {
         if self.fasta.read().trim().is_empty() {
             missing.push("FASTA");
         }
+        if self.results_dir.read().trim().is_empty() {
+            missing.push("Results Directory");
+        }
         if self.mzml_files.read().is_empty() {
             missing.push("mzML Files");
         }
@@ -492,6 +495,7 @@ pub fn CliForm() -> Element {
     let params_panel = rsx! {
         // Left column - Parameters (1/3 width)
         form { class: "w-1/3 p-6 bg-white dark:bg-gray-800 rounded shadow flex flex-col gap-4 overflow-y-auto",
+            novalidate: true,
             onsubmit: on_submit,
             h2 { class: PANEL_TITLE_CLASS, "Run Radiant+Fulcrum Workflow" }
 
@@ -556,10 +560,11 @@ pub fn CliForm() -> Element {
             }
 
             FilePathField {
-                title: "Results Directory (optional)".to_string(),
+                title: "Results Directory".to_string(),
                 placeholder: "Select output directory...".to_string(),
                 value: get_filename(&results_dir.read()).to_string(),
                 full_path: results_dir.read().clone(),
+                required: true,
                 oninput: move |value| results_dir.set(value),
                 onbrowse: pick_results_dir,
                 onclear: clear_results_dir,
