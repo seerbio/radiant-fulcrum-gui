@@ -72,13 +72,13 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: target/dx/radiant-fulcrum-gui/bundle/macos/macos/dmg/*.dmg
+          files: target/dx/radiant-fulcrum-gui/bundle/macos/macos/*.dmg
       - name: Upload Build Artifacts
         if: ${{ github.event_name != 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg-${{ matrix.platform.target }}
-          path: target/dx/radiant-fulcrum-gui/bundle/macos/macos/dmg/*.dmg
+          path: target/dx/radiant-fulcrum-gui/bundle/macos/macos/*.dmg
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
