@@ -1,6 +1,6 @@
 [package]
 name = "radiant-fulcrum-gui"
-version = "0.2.3"
+version = "0.2.6"
 authors = ["Seth Just <sjust@seer.bio>"]
 edition = "2021"
 
