@@ -11,7 +11,7 @@ use crate::types::{RunConfig, SearchMode};
 mod config_img {
     pub use crate::types::RunConfig;
 
-    const DEFAULT_IMG: &'static str = "718843040700.dkr.ecr.us-west-2.amazonaws.com/seer/radiant-fulcrum:latest";
+    const DEFAULT_IMG: &'static str = "seerbio/radiant-fulcrum:latest";
 
     impl RunConfig {
         pub fn get_img(&self) -> String {
@@ -129,24 +129,17 @@ where
             "run".to_string(),
             "--rm".to_string(),
             img.to_owned(),
-            // Note: the docker image currently doesn't encode a useful version number into the package metadata.
-            // If this changes in the future we can reenable this command and the output code below.
-            // r"apt-cache policy radiantdia | grep -Po '(?<=Installed: )((?:\d+\.)*\d+)'".to_string(),
-            "which".to_string(), "radiant_fulcrum".to_string(),
+            "bash".to_string(),
+            "-c".to_string(),
+            r"apt-cache policy radiantdia | grep -Po '(?<=Installed: )((?:\d+\.)*\d+)'".to_string(),
         ]);
 
     // Note: re-enable this once we're able to get a useful version number for Radiant.
-    // let mut ver: Option<String>  = None;
-    // match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut version_check, &mut None) {
-
-    match run_command(&mut |_| {}, &mut version_check, &mut None) {
+    let mut ver: Option<String>  = None;
+    match run_command(&mut |s| { ver = Some(s.to_string()) }, &mut version_check, &mut None) {
         Ok(0) =>  {
-            // Note: re-enable this once we're able to get a useful version number for Radiant.
-            // let msg = format!("Found Radiant version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
-            // on_output(msg.as_str());
-            // if let Some(ref mut file) = log_file {
-            //     let _ = writeln!(file, "{}", msg);
-            // }
+            let msg = format!("Found Radiant version {}", ver.map(|s| s.to_string()).unwrap_or("UNKNOWN".to_string()));
+            on_output(msg.as_str());
         }
         Ok(i) => {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Unable to run Radiant Docker image! Exit code {}", i)));
